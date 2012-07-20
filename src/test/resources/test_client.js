@@ -26,6 +26,7 @@ function testInvalidAction() {
     action: 'blahblahblah'
   }, function( reply ) {
     tu.azzert( reply.status === 'error' ) ;
+    tu.testComplete() ;
   } )
 }
 
