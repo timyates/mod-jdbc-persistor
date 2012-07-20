@@ -46,5 +46,10 @@ public class JavaScriptPersistorTest extends TestBase {
   public void testInvalidAction() throws Exception {
     startTest(getMethodName());
   }
+
+  @Test
+  public void testCreate() throws Exception {
+    startTest(getMethodName());
+  }
 }
 
