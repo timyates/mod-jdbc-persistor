@@ -198,9 +198,11 @@ public class JdbcPersistor extends BusModBase implements Handler<Message<JsonObj
   }
 
   private void doUpdate( final Message<JsonObject> message ) {
+    sendError( message, "UPDATE is not yet implemented." ) ;
   }
 
   private void doInsert( final Message<JsonObject> message ) {
+    sendError( message, "INSERT is not yet implemented." ) ;
   }
 
   private void doExecute( final Message<JsonObject> message ) {
@@ -231,5 +233,6 @@ public class JdbcPersistor extends BusModBase implements Handler<Message<JsonObj
   }
 
   private void doCall( final Message<JsonObject> message ) {
+    sendError( message, "CALL is not yet implemented." ) ;
   }
 }

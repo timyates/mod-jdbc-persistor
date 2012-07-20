@@ -19,11 +19,6 @@ package org.vertx.mods.tests;
 import org.junit.Test;
 import org.vertx.java.framework.TestBase;
 
-/**
- *
- *
- * @author <a href="http://tfox.org">Tim Fox</a>
- */
 public class JavaScriptPersistorTest extends TestBase {
 
   @Override
