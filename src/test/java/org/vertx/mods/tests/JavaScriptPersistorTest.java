@@ -43,7 +43,7 @@ public class JavaScriptPersistorTest extends TestBase {
   }
 
   @Test
-  public void testCreate() throws Exception {
+  public void testCreateAndInsert() throws Exception {
     startTest(getMethodName());
   }
 }
