@@ -26,7 +26,7 @@ import java.util.Map ;
 
 import com.mchange.v2.c3p0.* ;
 
-import org.apache.commons.dbutils.QueryRunner ;
+import org.apache.commons.dbutils.PatchedQueryRunner ;
 import org.apache.commons.dbutils.DbUtils ;
 import org.apache.commons.dbutils.handlers.MapListHandler ;
 
@@ -133,7 +133,7 @@ logger.info( "STARTING! " + eb ) ;
     }
   }
 
-  private List<Map<String,Object>> processValues( QueryRunner runner, String stmt, JsonArray values ) throws SQLException {
+  private List<Map<String,Object>> processValues( PatchedQueryRunner runner, String stmt, JsonArray values ) throws SQLException {
     Iterator<Object> iter = values.iterator() ;
     Object first = iter.next() ;
     List<Map<String,Object>> result = null ;
@@ -172,7 +172,7 @@ logger.info( "STARTING! " + eb ) ;
       }
     } ) {
       public List<Map<String,Object>> action() throws Exception {
-        QueryRunner runner = new QueryRunner( pool ) ;
+        PatchedQueryRunner runner = new PatchedQueryRunner( pool ) ;
         JsonArray values = message.body.getArray( "values" ) ;
         if( values == null ) {
           String statement = message.body.getString( "stmt" ) ;
