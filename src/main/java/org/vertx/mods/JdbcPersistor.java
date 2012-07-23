@@ -17,7 +17,6 @@
 package org.vertx.mods;
 
 import java.sql.Connection ;
-import java.sql.Statement ;
 import java.sql.SQLException ;
 
 import java.util.ArrayList ;
@@ -251,13 +250,11 @@ public class JdbcPersistor extends BusModBase implements Handler<Message<JsonObj
     } ) {
       public Void action() throws Exception {
         Connection connection = null ;
-        Statement statement = null ;
         try {
           connection = pool.getConnection() ;
           connection.createStatement().execute( message.body.getString( "stmt" ) ) ;
         }
         finally {
-          DbUtils.closeQuietly( statement ) ;
           DbUtils.closeQuietly( connection ) ;
         }
         return null ;
