@@ -202,14 +202,14 @@ public class JdbcPersistor extends BusModBase implements Handler<Message<JsonObj
     sendError( message, "UPDATE is not yet implemented." ) ;
   }
 
-  private List<Map<String,Object>> processInsertValues( PatchedQueryRunner runner, String stmt, JsonArray values ) throws SQLException {
+  private List<Map<String,Object>> processInsertValues( Connection connection, PatchedQueryRunner runner, String stmt, JsonArray values ) throws SQLException {
     Iterator<Object> iter = values.iterator() ;
     Object first = iter.next() ;
     List<Map<String,Object>> result = null ;
     if( first instanceof JsonArray ) { // List of lists...
-      result = processInsertValues( runner, stmt, (JsonArray)first ) ;
+      result = processInsertValues( connection, runner, stmt, (JsonArray)first ) ;
       while( iter.hasNext() ) {
-        result.addAll( processInsertValues( runner, stmt, (JsonArray)iter.next() ) ) ;
+        result.addAll( processInsertValues( connection, runner, stmt, (JsonArray)iter.next() ) ) ;
       }
     }
     else {
@@ -218,7 +218,7 @@ public class JdbcPersistor extends BusModBase implements Handler<Message<JsonObj
       while( iter.hasNext() ) {
         params.add( iter.next() ) ;
       }
-      result = runner.insert( stmt, new MapListHandler(), params.toArray( new Object[] {} ) ) ;
+      result = runner.insert( connection, stmt, new MapListHandler(), params.toArray( new Object[] {} ) ) ;
     }
     return result ;
   }
@@ -242,13 +242,27 @@ public class JdbcPersistor extends BusModBase implements Handler<Message<JsonObj
     } ) {
       public List<Map<String,Object>> action() throws Exception {
         PatchedQueryRunner runner = new PatchedQueryRunner( pool ) ;
-        JsonArray values = message.body.getArray( "values" ) ;
-        String statement = message.body.getString( "stmt" ) ;
-        if( values == null ) {
-          return runner.insert( statement, new MapListHandler() ) ;
+        Connection connection = pool.getConnection() ;
+        try {
+          connection.setAutoCommit( false ) ;
+          JsonArray values = message.body.getArray( "values" ) ;
+          String statement = message.body.getString( "stmt" ) ;
+          List<Map<String,Object>> result ;
+          if( values == null ) {
+            result = runner.insert( connection, statement, new MapListHandler() ) ;
+          }
+          else {
+            result = processInsertValues( connection, runner, statement, values ) ;
+          }
+          connection.commit() ;
+          return result ;
         }
-        else {
-          return processInsertValues( runner, statement, values ) ;
+        catch( SQLException ex ) {
+          connection.rollback() ;
+          throw ex ;
+        }
+        finally {
+          DbUtils.closeQuietly( connection ) ;
         }
       }
     }.run() ;
