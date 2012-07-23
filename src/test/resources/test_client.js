@@ -59,7 +59,26 @@ function testCreateAndInsert() {
       tu.azzert( reply.result[ 0 ].ID == 1 ) ;
       tu.azzert( reply.result[ 1 ].ID == 2 ) ;
       tu.azzert( reply.result[ 2 ].ID == 3 ) ;
-      tu.testComplete() ;
+      eb.send( 'test.persistor', {
+        action: 'select',
+        stmt:   'SELECT * FROM testing ORDER BY age ASC'
+      }, function( reply ) {
+        tu.azzert( reply.status === 'ok' ) ;
+        tu.azzert( reply.result.length == 3 ) ;
+        tu.azzert( reply.result[ 0 ].ID   === 2 ) ;
+        tu.azzert( reply.result[ 0 ].NAME === 'dave' ) ;
+        tu.azzert( reply.result[ 0 ].AGE  === 29 ) ;
+
+        tu.azzert( reply.result[ 1 ].ID   === 3 ) ;
+        tu.azzert( reply.result[ 1 ].NAME === 'mike' ) ;
+        tu.azzert( reply.result[ 1 ].AGE  === 42 ) ;
+
+        tu.azzert( reply.result[ 2 ].ID   === 1 ) ;
+        tu.azzert( reply.result[ 2 ].NAME === 'tim' ) ;
+        tu.azzert( reply.result[ 2 ].AGE  === 65 ) ;
+
+        tu.testComplete() ;
+      } ) ;
     } ) ;
   } )
 }
