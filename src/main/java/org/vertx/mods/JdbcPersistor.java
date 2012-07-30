@@ -31,11 +31,8 @@ import org.apache.commons.dbutils.DbUtils ;
 import org.apache.commons.dbutils.handlers.MapListHandler ;
 
 import org.vertx.java.busmods.BusModBase ;
-import org.vertx.java.core.AsyncResult ;
-import org.vertx.java.core.AsyncResultHandler ;
 import org.vertx.java.core.Handler ;
 import org.vertx.java.core.eventbus.Message ;
-import org.vertx.java.core.impl.BlockingAction ;
 import org.vertx.java.core.impl.VertxInternal ;
 import org.vertx.java.core.json.JsonArray ;
 import org.vertx.java.core.json.JsonObject ;
@@ -137,34 +134,28 @@ public class JdbcPersistor extends BusModBase implements Handler<Message<JsonObj
   }
 
   private void doSelect( final Message<JsonObject> message ) {
-    new BlockingAction<List<Map<String,Object>>>( (VertxInternal)vertx, new AsyncResultHandler<List<Map<String,Object>>>() {
-      public void handle( AsyncResult<List<Map<String,Object>>> result ) {
-        if( result.succeeded() ) {
-          JsonObject reply = new JsonObject() ;
-          JsonArray rows = new JsonArray() ;
-          for( Map<String,Object> row : result.result ) {
-            rows.addObject( new JsonObject( row ) ) ;
-          }
-          reply.putArray( "result", rows ) ;
-          sendOK( message, reply ) ;
-        }
-        else {
-          sendError( message, "Error with SELECT", result.exception ) ;
-        }
+    try {
+      PatchedQueryRunner runner = new PatchedQueryRunner( pool ) ;
+      JsonArray values = message.body.getArray( "values" ) ;
+      String statement = message.body.getString( "stmt" ) ;
+      List<Map<String,Object>> result ;
+      if( values == null ) {
+        result = runner.query( statement, new MapListHandler() ) ;
       }
-    } ) {
-      public List<Map<String,Object>> action() throws Exception {
-        PatchedQueryRunner runner = new PatchedQueryRunner( pool ) ;
-        JsonArray values = message.body.getArray( "values" ) ;
-        String statement = message.body.getString( "stmt" ) ;
-        if( values == null ) {
-          return runner.query( statement, new MapListHandler() ) ;
-        }
-        else {
-          return processValues( runner, statement, values ) ;
-        }
+      else {
+        result = processValues( runner, statement, values ) ;
       }
-    }.run() ;
+      JsonObject reply = new JsonObject() ;
+      JsonArray rows = new JsonArray() ;
+      for( Map<String,Object> row : result ) {
+        rows.addObject( new JsonObject( row ) ) ;
+      }
+      reply.putArray( "result", rows ) ;
+      sendOK( message, reply ) ;
+    }
+    catch( SQLException ex ) {
+      sendError( message, "Caught error with SELECT", ex ) ;
+    }
   }
 
   private void doUpdate( final Message<JsonObject> message ) {
@@ -193,73 +184,56 @@ public class JdbcPersistor extends BusModBase implements Handler<Message<JsonObj
   }
 
   private void doInsert( final Message<JsonObject> message ) {
-    new BlockingAction<List<Map<String,Object>>>( (VertxInternal)vertx, new AsyncResultHandler<List<Map<String,Object>>>() {
-      public void handle( AsyncResult<List<Map<String,Object>>> result ) {
-        if( result.succeeded() ) {
-          JsonObject reply = new JsonObject() ;
-          JsonArray rows = new JsonArray() ;
-          for( Map<String,Object> row : result.result ) {
-            rows.addObject( new JsonObject( row ) ) ;
-          }
-          reply.putArray( "result", rows ) ;
-          sendOK( message, reply ) ;
-        }
-        else {
-          sendError( message, "Error with SELECT", result.exception ) ;
-        }
+    PatchedQueryRunner runner = new PatchedQueryRunner( pool ) ;
+    Connection connection = null ;
+    try {
+      connection = pool.getConnection() ;
+      connection.setAutoCommit( false ) ;
+      JsonArray values = message.body.getArray( "values" ) ;
+      String statement = message.body.getString( "stmt" ) ;
+      List<Map<String,Object>> result ;
+      if( values == null ) {
+        result = runner.insert( connection, statement, new MapListHandler() ) ;
       }
-    } ) {
-      public List<Map<String,Object>> action() throws Exception {
-        PatchedQueryRunner runner = new PatchedQueryRunner( pool ) ;
-        Connection connection = pool.getConnection() ;
-        try {
-          connection.setAutoCommit( false ) ;
-          JsonArray values = message.body.getArray( "values" ) ;
-          String statement = message.body.getString( "stmt" ) ;
-          List<Map<String,Object>> result ;
-          if( values == null ) {
-            result = runner.insert( connection, statement, new MapListHandler() ) ;
-          }
-          else {
-            result = processInsertValues( connection, runner, statement, values ) ;
-          }
-          connection.commit() ;
-          return result ;
-        }
-        catch( SQLException ex ) {
-          connection.rollback() ;
-          throw ex ;
-        }
-        finally {
-          DbUtils.closeQuietly( connection ) ;
-        }
+      else {
+        result = processInsertValues( connection, runner, statement, values ) ;
       }
-    }.run() ;
+      connection.commit() ;
+      JsonObject reply = new JsonObject() ;
+      JsonArray rows = new JsonArray() ;
+      for( Map<String,Object> row : result ) {
+        rows.addObject( new JsonObject( row ) ) ;
+      }
+      reply.putArray( "result", rows ) ;
+      sendOK( message, reply ) ;
+    }
+    catch( SQLException ex ) {
+      try {
+        connection.rollback() ;
+      }
+      catch( SQLException ex2 ) {
+        logger.error( "Caught exption rolling back commit", ex2 ) ;
+      }
+      sendError( message, "Error with INSERT", ex ) ;
+    }
+    finally {
+      DbUtils.closeQuietly( connection ) ;
+    }
   }
 
   private void doExecute( final Message<JsonObject> message ) {
-    new BlockingAction<Void>( (VertxInternal)vertx, new AsyncResultHandler<Void>() {
-      public void handle( AsyncResult<Void> result ) {
-        if( result.succeeded() ) {
-          sendOK( message ) ;
-        }
-        else {
-          sendError( message, "Error with EXECUTE", result.exception ) ;
-        }
-      }
-    } ) {
-      public Void action() throws Exception {
-        Connection connection = null ;
-        try {
-          connection = pool.getConnection() ;
-          connection.createStatement().execute( message.body.getString( "stmt" ) ) ;
-        }
-        finally {
-          DbUtils.closeQuietly( connection ) ;
-        }
-        return null ;
-      }
-    }.run() ;
+    Connection connection = null ;
+    try {
+      connection = pool.getConnection() ;
+      connection.createStatement().execute( message.body.getString( "stmt" ) ) ;
+      sendOK( message ) ;
+    }
+    catch( SQLException ex ) {
+      sendError( message, "Error with EXECUTE", ex ) ;
+    }
+    finally {
+      DbUtils.closeQuietly( connection ) ;
+    }
   }
 
   private void doCall( final Message<JsonObject> message ) {
