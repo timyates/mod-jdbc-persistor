@@ -55,7 +55,7 @@ One of:
 }
 ```
 
-> If batchSize is less than available number of records, then partial result will be returned, and user will need to make another query to the replier within 10 seconds to get the next batch of data.  If 10 seconds pass with no query, the resultset and connection are closed automatically
+> If batchSize is less than available number of records, then partial result will be returned, and user will need to make another query to the replier within 10 seconds to get the next batch of data.  If 10 seconds pass with no query, the resultset and statement are closed automatically.  If we are not within a transaction (see below), the connection is closed as well.
 
 ## INSERT
 
