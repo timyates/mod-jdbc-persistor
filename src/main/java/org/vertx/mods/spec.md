@@ -11,7 +11,7 @@ It may not be a description of how it currently works...
 ```json
 {
   "action": "select",
-  "stmt": "SELECT * FROM xxx",
+  "stmt": "SELECT * FROM xxx"
 }
 ```
 or
@@ -38,19 +38,19 @@ One of:
 
 ```json
 {
-  "status": "ok"
+  "status": "ok",
   "result": [ { "NAME":"a", "AGE":32 }, ... ]
 }
 ```
 ```json
 {
-  "status": "partial"
+  "status": "partial",
   "result": [ { "NAME":"a", "AGE":32 }, ... ]
 }
 ```
 ```json
 {
-  "status": "error"
+  "status": "error",
   "exception": "message"
 }
 ```
@@ -65,7 +65,7 @@ One of:
 {
   "action": "insert",
   "stmt": "INSERT INTO xxx( a, b ) VALUES( ?, ? )",
-  "params": [ { "a":10, "b":20 }, ... ],
+  "params": [ { "a":10, "b":20 }, ... ]
 }
 ```
 ### Outputs
@@ -74,14 +74,14 @@ One of:
 
 ```json
 {
-  "status": "ok"
+  "status": "ok",
   "result": [ { "ID":1 }, { "ID":2 }, ... ]
 }
 ```
 or
 ```json
 {
-  "status": "error"
+  "status": "error",
   "exception": "message"
 }
 ```
@@ -109,7 +109,7 @@ or
 or
 ```json
 {
-  "status": "error"
+  "status": "error",
   "exception": "message"
 }
 ```
@@ -122,7 +122,7 @@ or
 
 ```json
 {
-  "action": "commit",
+  "action": "commit"
 }
 ```
 
@@ -136,7 +136,7 @@ or
 or
 ```json
 {
-  "status": "error"
+  "status": "error",
   "exception": "message"
 }
 ```
@@ -147,7 +147,7 @@ or
 
 ```json
 {
-  "action": "rollback",
+  "action": "rollback"
 }
 ```
 
@@ -161,7 +161,7 @@ or
 or
 ```json
 {
-  "status": "error"
+  "status": "error",
   "exception": "message"
 }
 ```
