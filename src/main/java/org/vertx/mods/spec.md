@@ -1,5 +1,9 @@
 # Interface Specification
 
+This is a quick doc describing how I want it work, so I don't change my mind halfway through coding it ;-)
+
+It may not be a description of how it currently works...
+
 ## SELECT
 
 ### Inputs
@@ -35,13 +39,13 @@ One of:
 ```json
 {
   "status": "ok"
-  "result": [ [ "NAME":"a", "AGE":32 ], ... ]
+  "result": [ { "NAME":"a", "AGE":32 }, ... ]
 }
 ```
 ```json
 {
   "status": "partial"
-  "result": [ [ "NAME":"a", "AGE":32 ], ... ]
+  "result": [ { "NAME":"a", "AGE":32 }, ... ]
 }
 ```
 ```json
