@@ -14,21 +14,7 @@
  * limitations under the License.
  */
 
-buildscript {
-  repositories {
-    maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
-    mavenCentral()
-  }
-  dependencies {
-    classpath "org.vert-x:build-tools:$vertxBuildToolsVersion"
-    classpath "org.vert-x:gradle-plugin:$vertxGradlePluginVersion"
-  }
-}
-
-apply from: 'gradle/setup.gradle'
 apply plugin: 'java'
-apply plugin: 'vertx' // configures the test classpath correctly and adds busmod packaging
-apply plugin: 'vertx-rhino'
 
 defaultTasks = ['assemble']
 
@@ -42,15 +28,15 @@ repositories {
   mavenCentral()
 }
 
-project.configurations.testCompile.dependencies.each { println it }
+configurations {
+  provided
+}
 
 dependencies {
-  compile "mysql:mysql-connector-java:$mysqlVersion"
   compile "c3p0:c3p0:$c3p0Version"
   compile "commons-dbutils:commons-dbutils:$dbutilsVersion"
-
-  vertxProvided "org.vert-x:vertx-core:$vertxVersion"
-  vertxProvided "org.vert-x:vertx-platform:$vertxVersion"
+  provided     "org.vert-x:vertx-core:$vertxVersion"
+  provided     "org.vert-x:vertx-platform:$vertxVersion"
 
   testCompile "org.vert-x:vertx-core:$vertxVersion"
   testCompile "org.vert-x:vertx-platform:$vertxVersion"
@@ -65,18 +51,51 @@ dependencies {
   testCompile "junit:junit:$junitVersion"
 }
 
+sourceSets {
+  main {
+    compileClasspath = compileClasspath + configurations.provided
+  }
+}
+
+task prepareVertxModule( type:Copy, dependsOn: 'classes' ) {
+  into "build/mod/$modulename-v$version"
+  from 'build/classes/main'
+  from 'src/main/conf'
+  into( 'lib' ) {
+    from configurations.compile
+  }
+}
+
+// Package into build/libs/mod.zip
+task dist( type: Zip, dependsOn: 'copyMod' ) {
+  group = 'vert.x'
+  description = "Assembles a vert.x module in 'mod.zip' format"
+  destinationDir = project.file('build/libs')
+  archiveName = 'mod.zip'
+  from project.file("build/mod")
+}
+
 task prepareVertxTest(type: Sync, dependsOn: ['prepareVertxModule']) {
   from 'build/mod'
   into 'build/tmp/mod-test'
 }
 
-test.dependsOn prepareVertxTest
-
 test {
+  // Can't have the app on the vert.x classpath
+  classpath = files( classpath.findAll {
+    !( it.toString() ==~ /.+build\/(classes|resources)\/main$/ )
+  } )
+
+  // Some vert.x properties
   systemProperty 'vertx.test.timeout', 15
   systemProperty 'vertx.mods', "$projectDir/build/tmp/mod-test"
   systemProperty 'vertx.version', "$project.version"
+
+  // Show output
   testLogging.showStandardStreams = true
+
+  // No idea why we need to depend on testClasses...
+  dependsOn << [ 'testClasses', 'prepareVertxTest' ]
 }
 
 task collectDeps(type: Copy) {
@@ -89,9 +108,4 @@ task collectDeps(type: Copy) {
   into("test") {
     from configurations.testCompile
   }
-}
-
-task dist(dependsOn: ['build', 'packageVertxModule']) {
-  group = 'vert.x'
-  description = 'prepare a distributable busmod "mod.zip" package'
 }
