@@ -34,20 +34,20 @@ One of:
 
 ```json
 {
-  status: ok
-  result: [ [ NAME:'a', AGE:32 ], ... ]
+  "status": "ok"
+  "result": [ [ "NAME":"a", "AGE":32 ], ... ]
 }
 ```
 ```json
 {
-  status: partial
-  result: [ [ NAME:'a', AGE:32 ], ... ]
+  "status": "partial"
+  "result": [ [ "NAME":"a", "AGE":32 ], ... ]
 }
 ```
 ```json
 {
-  status: error
-  exception: message
+  "status": "error"
+  "exception": "message"
 }
 ```
 
