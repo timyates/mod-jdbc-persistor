@@ -6,9 +6,25 @@
 
 ```json
 {
-  action: select
-  stmt: 'SELECT * FROM xxx'
-	[ batchSize: norecords ]
+  "action": "select",
+  "stmt": "SELECT * FROM xxx",
+}
+```
+or
+```json
+{
+  "action": "select",
+  "stmt": "SELECT * FROM xxx WHERE a=? AND b=?",
+  "params": [ { "a":10, "b":20 }, ... ]
+}
+```
+or
+```json
+{
+  "action": "select",
+  "stmt": "SELECT * FROM xxx WHERE a=? AND b=?",
+  "params": [ { "a":10, "b":20 }, ... ],
+  "batchsize": 10
 }
 ```
 
