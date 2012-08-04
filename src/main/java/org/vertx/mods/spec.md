@@ -78,6 +78,7 @@ One of:
   "result": [ { "ID":1 }, { "ID":2 }, ... ]
 }
 ```
+or
 ```json
 {
   "status": "error"
@@ -103,6 +104,13 @@ One of:
 ```json
 {
   "status":"ok"
+}
+```
+or
+```json
+{
+  "status": "error"
+  "exception": "message"
 }
 ```
 
