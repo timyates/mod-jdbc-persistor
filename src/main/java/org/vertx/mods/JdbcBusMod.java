@@ -135,11 +135,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     try {
       connection = pool.getConnection() ;
       connection.setAutoCommit( false ) ;
-      JsonObject reply = new JsonObject() ;
-      reply.putString( "status", "ok" ) ;
-      // set a timer to rollback and close
-      // reply with the handler to continue with
-      message.reply( reply, new TransactionalHandler( connection ) ) ;
+      doTransaction( message, connection ) ;
     }
     catch( SQLException ex ) {
       sendError( message, "Caught exception in TRANSACTION.  Rolling back...", ex ) ;
@@ -153,6 +149,16 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     }
   }
 
+  private void doTransaction( final Message<JsonObject> message, final Connection connection ) {
+    JsonObject reply = new JsonObject() ;
+    reply.putString( "status", "ok" ) ;
+    // set a timer to rollback and close
+    final long timerId = vertx.setTimer( 10000, new TransactionTimeoutHandler( connection ) ) ;
+
+    // reply with the handler to continue with
+    message.reply( reply, new TransactionalHandler( connection, timerId ) ) ;
+  }
+  
   private class BatchHandler implements Handler<Message<JsonObject>> {
     Connection connection ;
     ResultSet rslt ;
@@ -166,15 +172,35 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     }
   }
 
-  private class TransactionalHandler implements Handler<Message<JsonObject>> {
+  private class TransactionTimeoutHandler implements Handler<Long> {
     Connection connection ;
 
-    TransactionalHandler( Connection connection ) {
+    TransactionTimeoutHandler( Connection connection ) {
       this.connection = connection ;
     }
 
+    public void handle( Long timerID ) {
+      logger.warn( "Closing and rolling back transaction on timeout") ;
+      try {
+        connection.rollback() ;
+        connection.close() ;   
+      } catch ( SQLException ex ) {
+        logger.error( "Failed to rollback on transaction timeout", ex ) ;
+      }
+    }
+  }
+
+  private class TransactionalHandler implements Handler<Message<JsonObject>> {
+    Connection connection ;
+    long timerId ;
+
+    TransactionalHandler( Connection connection, long timerId ) {
+      this.connection = connection ;
+      this.timerId = timerId ;
+    }
+
     public void handle( final Message<JsonObject> message ) {
-      // Cancel existing timer
+      vertx.cancelTimer( timerId ) ;
       String action = message.body.getString( "action" ) ;
       if( action == null ) {
         sendError( message, "action must be specified" ) ;
@@ -182,11 +208,11 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       switch( action ) {
         case "select" :
           doSelect( message, connection ) ;
-          // start new timer
+          timerId = vertx.setTimer( 10000, new TransactionTimeoutHandler( connection ) ) ;
           break ;
         case "update" :
           doUpdate( message, connection ) ;
-          // start new timer
+          timerId = vertx.setTimer( 10000, new TransactionTimeoutHandler( connection ) ) ;
           break ;
         case "commit" :
           doCommit( message ) ;
@@ -195,7 +221,8 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
           doRollback( message ) ;
           break ;
         default:
-          sendError( message, "Invalid action : " + action ) ;
+          sendError( message, "Invalid action : " + action + ". Rolling back." ) ;
+          doRollback( message ) ;
       }
     }
 
