@@ -1,6 +1,8 @@
 package org.vertx.mods ;
 
 import java.sql.Connection ;
+import java.sql.Statement ;
+import java.sql.ResultSet ;
 import java.sql.SQLException ;
 
 import java.util.ArrayList ;
@@ -81,34 +83,146 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       case "transaction" :
         doTransaction( message ) ;
         break ;
-      case "commit" :
-        doCommit( message ) ;
-        break ;
-      case "rollback" :
-        doRollback( message ) ;
-        break ;
       default:
         sendError( message, "Invalid action : " + action ) ;
     }
   }
 
   private void doSelect( final Message<JsonObject> message ) {
+    Connection connection = null ;
+    try {
+      connection = pool.getConnection() ;
+      doSelect( message, connection ) ;
+    }
+    catch( SQLException ex ) {
+      sendError( message, "Caught error with SELECT", ex ) ;
+    }
+    finally {
+      close( connection ) ;
+    }
+  }
+
+  private void doSelect( final Message<JsonObject> message, Connection conn ) {
     sendError( message, "SELECT is not yet implemented." ) ;
   }
 
   private void doUpdate( final Message<JsonObject> message ) {
+    Connection connection = null ;
+    try {
+      connection = pool.getConnection() ;
+      connection.setAutoCommit( false ) ;
+      doUpdate( message, connection ) ;
+      connection.commit() ;
+    }
+    catch( SQLException ex ) {
+      sendError( message, "Caught error with UPDATE.  Rolling back...", ex ) ;
+      try { connection.rollback() ; }
+      catch( SQLException exx ) {
+        logger.error( "Failed to rollback", exx ) ;
+      }
+    }
+    finally {
+      close( connection ) ;
+    }
+  }
+
+  private void doUpdate( final Message<JsonObject> message, Connection connection ) {
     sendError( message, "UPDATE is not yet implemented." ) ;
   }
 
   private void doTransaction( final Message<JsonObject> message ) {
-    sendError( message, "TRANSACTION is not yet implemented." ) ;
+    Connection connection = null ;
+    try {
+      connection = pool.getConnection() ;
+      connection.setAutoCommit( false ) ;
+      JsonObject reply = new JsonObject() ;
+      reply.putString( "status", "ok" ) ;
+      // set a timer to rollback and close
+      // reply with the handler to continue with
+      message.reply( reply, new TransactionalHandler( connection ) ) ;
+    }
+    catch( SQLException ex ) {
+      sendError( message, "Caught exception in TRANSACTION.  Rolling back...", ex ) ;
+      try { connection.rollback() ; }
+      catch( SQLException exx ) {
+        logger.error( "Failed to rollback", exx ) ;
+      }
+    }
+    finally {
+      close( connection ) ;
+    }
   }
 
-  private void doCommit( final Message<JsonObject> message ) {
-    sendError( message, "COMMIT is not yet implemented." ) ;
+  private class BatchHandler implements Handler<Message<JsonObject>> {
+    Connection connection ;
+    ResultSet rslt ;
+
+    BatchHandler( Connection conn, ResultSet rslt ) {
+      this.connection = connection ;
+      this.rslt = rslt ;
+    }
+
+    public void handle( final Message<JsonObject> message ) {
+    }
   }
 
-  private void doRollback( final Message<JsonObject> message ) {
-    sendError( message, "ROLLBACK is not yet implemented." ) ;
+  private class TransactionalHandler implements Handler<Message<JsonObject>> {
+    Connection connection ;
+
+    TransactionalHandler( Connection connection ) {
+      this.connection = connection ;
+    }
+
+    public void handle( final Message<JsonObject> message ) {
+      // Cancel existing timer
+      String action = message.body.getString( "action" ) ;
+      if( action == null ) {
+        sendError( message, "action must be specified" ) ;
+      }
+      switch( action ) {
+        case "select" :
+          doSelect( message, connection ) ;
+          // start new timer
+          break ;
+        case "update" :
+          doUpdate( message, connection ) ;
+          // start new timer
+          break ;
+        case "commit" :
+          doCommit( message ) ;
+          break ;
+        case "rollback" :
+          doRollback( message ) ;
+          break ;
+        default:
+          sendError( message, "Invalid action : " + action ) ;
+      }
+    }
+
+    private void doCommit( final Message<JsonObject> message ) {
+      try { connection.commit() ; }
+      catch( SQLException ex ) { logger.error( "Failed to commit", ex ) ; }
+      finally { close( connection ) ; }
+    }
+
+    private void doRollback( final Message<JsonObject> message ) {
+      try { connection.rollback() ; }
+      catch( SQLException ex ) { logger.error( "Failed to rollback", ex ) ; }
+      finally { close( connection ) ; }
+    }
+  }
+
+  private void close( Connection conn )                 { close( conn, null, null ) ; }
+  private void close( Statement stmt  )                 { close( null, stmt, null ) ; }
+  private void close( ResultSet rslt  )                 { close( null, null, rslt ) ; }
+  private void close( Connection conn, Statement stmt ) { close( conn, stmt, null ) ; }
+  private void close( Statement stmt, ResultSet rslt )  { close( null, stmt, rslt ) ; }
+  private void close( Connection conn, Statement stmt, ResultSet rslt ) {
+    try { if( rslt != null ) rslt.close() ; }
+    catch( SQLException ex ) { logger.error( "Problems closing result set", ex ) ; }
+    try { if( stmt != null ) stmt.close() ; }
+    catch( SQLException ex ) { logger.error( "Problems closing statement set", ex ) ; }
+    try { if( conn != null ) conn.close() ; }
+    catch( SQLException ex ) { logger.error( "Problems closing connection set", ex ) ; }
   }
 }
