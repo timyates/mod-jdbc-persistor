@@ -152,11 +152,12 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
   private void doTransaction( final Message<JsonObject> message, final Connection connection ) {
     JsonObject reply = new JsonObject() ;
     reply.putString( "status", "ok" ) ;
+    int timeout = message.body.getNumber( "timeout", 10000 ).intValue() ;
     // set a timer to rollback and close
-    final long timerId = vertx.setTimer( 10000, new TransactionTimeoutHandler( connection ) ) ;
+    final long timerId = vertx.setTimer( timeout, new TransactionTimeoutHandler( connection ) ) ;
 
     // reply with the handler to continue with
-    message.reply( reply, new TransactionalHandler( connection, timerId ) ) ;
+    message.reply( reply, new TransactionalHandler( connection, timerId, timeout ) ) ;
   }
   
   private class BatchHandler implements Handler<Message<JsonObject>> {
@@ -193,8 +194,9 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
   private class TransactionalHandler implements Handler<Message<JsonObject>> {
     Connection connection ;
     long timerId ;
+    int timeout ;
 
-    TransactionalHandler( Connection connection, long timerId ) {
+    TransactionalHandler( Connection connection, long timerId, int timeout ) {
       this.connection = connection ;
       this.timerId = timerId ;
     }
@@ -208,11 +210,11 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       switch( action ) {
         case "select" :
           doSelect( message, connection ) ;
-          timerId = vertx.setTimer( 10000, new TransactionTimeoutHandler( connection ) ) ;
+          timerId = vertx.setTimer( timeout, new TransactionTimeoutHandler( connection ) ) ;
           break ;
         case "update" :
           doUpdate( message, connection ) ;
-          timerId = vertx.setTimer( 10000, new TransactionTimeoutHandler( connection ) ) ;
+          timerId = vertx.setTimer( timeout, new TransactionTimeoutHandler( connection ) ) ;
           break ;
         case "commit" :
           doCommit( message ) ;
