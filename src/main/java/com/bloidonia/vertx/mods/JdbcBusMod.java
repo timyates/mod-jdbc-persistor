@@ -1,4 +1,4 @@
-package org.vertx.mods ;
+package com.bloidonia.vertx.mods ;
 
 import java.sql.Connection ;
 import java.sql.Statement ;

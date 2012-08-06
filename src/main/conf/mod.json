@@ -1,4 +1,4 @@
 {
-  "main": "org.vertx.mods.JdbcPersistor",
+  "main": "com.bloidonia.vertx.mods.JdbcPersistor",
   "worker": true
 }
