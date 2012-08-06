@@ -178,9 +178,9 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       if( insert ) {
         ResultSetHandler<List<Map<String,Object>>> handler = new MapListHandler() ;
         List<Map<String,Object>> result ;
-        QueryRunner qr = new QueryRunner() ;
         stmt = connection.prepareStatement( statementString, Statement.RETURN_GENERATED_KEYS ) ;
         if( values != null ) {
+          QueryRunner qr = new QueryRunner() ;
           result = new ArrayList<Map<String,Object>>() ;
           for( Object params : values ) {
             qr.fillStatement( stmt, params ) ;
@@ -204,7 +204,21 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
         sendOK( message, reply ) ;
       }
       else {
-        connection.createStatement() ;
+        stmt = connection.prepareStatement( statementString ) ;
+        int nRows = 0 ;
+        if( values != null ) {
+          QueryRunner qr = new QueryRunner() ;
+
+          for( Object params : values ) {
+            qr.fillStatement( stmt, params ) ;
+            nRows += stmt.executeUpdate() ;
+          }
+        }
+        else {
+          nRows += stmt.executeUpdate();
+        }
+        JsonObject reply = new JsonObject() ;
+        reply.putNumber( "updated", nRows ) ;
         sendOK( message ) ;
       }
     }
