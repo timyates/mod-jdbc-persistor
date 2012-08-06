@@ -78,7 +78,10 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
         doSelect( message ) ;
         break ;
       case "update" :
-        doUpdate( message ) ;
+        doUpdate( message, false ) ;
+        break ;
+      case "insert" :
+        doUpdate( message, true ) ;
         break ;
       case "transaction" :
         doTransaction( message ) ;
@@ -106,12 +109,12 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     sendError( message, "SELECT is not yet implemented." ) ;
   }
 
-  private void doUpdate( final Message<JsonObject> message ) {
+  private void doUpdate( final Message<JsonObject> message, boolean insert ) {
     Connection connection = null ;
     try {
       connection = pool.getConnection() ;
       connection.setAutoCommit( false ) ;
-      doUpdate( message, connection ) ;
+      doUpdate( message, connection, insert ) ;
       connection.commit() ;
     }
     catch( SQLException ex ) {
@@ -126,7 +129,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     }
   }
 
-  private void doUpdate( final Message<JsonObject> message, Connection connection ) {
+  private void doUpdate( final Message<JsonObject> message, Connection connection, boolean insert ) {
     sendError( message, "UPDATE is not yet implemented." ) ;
   }
 
@@ -213,7 +216,11 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
           timerId = vertx.setTimer( timeout, new TransactionTimeoutHandler( connection ) ) ;
           break ;
         case "update" :
-          doUpdate( message, connection ) ;
+          doUpdate( message, connection, false ) ;
+          timerId = vertx.setTimer( timeout, new TransactionTimeoutHandler( connection ) ) ;
+          break ;
+        case "insert" :
+          doUpdate( message, connection, true ) ;
           timerId = vertx.setTimer( timeout, new TransactionTimeoutHandler( connection ) ) ;
           break ;
         case "commit" :
