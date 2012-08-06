@@ -1,16 +1,22 @@
 package com.bloidonia.vertx.mods ;
 
+import com.mchange.v2.c3p0.* ;
+
 import java.sql.Connection ;
-import java.sql.Statement ;
+import java.sql.PreparedStatement ;
 import java.sql.ResultSet ;
 import java.sql.SQLException ;
+import java.sql.Statement ;
 
 import java.util.ArrayList ;
 import java.util.Iterator ;
 import java.util.List ;
 import java.util.Map ;
 
-import com.mchange.v2.c3p0.* ;
+import org.apache.commons.dbutils.QueryRunner ;
+import org.apache.commons.dbutils.ResultSetHandler ;
+import org.apache.commons.dbutils.DbUtils ;
+import org.apache.commons.dbutils.handlers.MapListHandler ;
 
 import org.vertx.java.busmods.BusModBase ;
 import org.vertx.java.core.Handler ;
@@ -104,7 +110,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       sendError( message, "Caught error with SELECT", ex ) ;
     }
     finally {
-      close( connection ) ;
+      SilentCloser.close( connection ) ;
     }
   }
 
@@ -122,7 +128,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       sendError( message, "Caught error with EXECUTE", ex ) ;
     }
     finally {
-      close( connection ) ;
+      SilentCloser.close( connection ) ;
     }
   }
 
@@ -139,7 +145,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       sendError( message, "Error with EXECUTE", ex ) ;
     }
     finally {
-      close( connection, statement ) ;
+      SilentCloser.close( connection, statement ) ;
     }
   }
 
@@ -159,12 +165,52 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       }
     }
     finally {
-      close( connection ) ;
+      SilentCloser.close( connection ) ;
     }
   }
 
-  private void doUpdate( final Message<JsonObject> message, Connection connection, boolean insert ) {
-    sendError( message, "UPDATE is not yet implemented." ) ;
+  private void doUpdate( final Message<JsonObject> message, Connection connection, boolean insert ) throws SQLException {
+    JsonArray values = message.body.getArray( "values" ) ;
+    String statementString = message.body.getString( "stmt" ) ;
+    PreparedStatement stmt = null ;
+    ResultSet rslt = null ;
+    try {
+      if( insert ) {
+        ResultSetHandler<List<Map<String,Object>>> handler = new MapListHandler() ;
+        List<Map<String,Object>> result ;
+        QueryRunner qr = new QueryRunner() ;
+        stmt = connection.prepareStatement( statementString, Statement.RETURN_GENERATED_KEYS ) ;
+        if( values != null ) {
+          result = new ArrayList<Map<String,Object>>() ;
+          for( Object params : values ) {
+            qr.fillStatement( stmt, params ) ;
+            stmt.executeUpdate() ;
+            rslt = stmt.getGeneratedKeys() ;
+            result.addAll( handler.handle( rslt ) ) ;
+          }
+        }
+        else {
+          stmt.executeUpdate();
+          rslt = stmt.getGeneratedKeys();
+          result = handler.handle( rslt ) ;
+        }
+
+        JsonObject reply = new JsonObject() ;
+        JsonArray rows = new JsonArray() ;
+        for( Map<String,Object> row : result ) {
+          rows.addObject( new JsonObject( row ) ) ;
+        }
+        reply.putArray( "result", rows ) ;
+        sendOK( message, reply ) ;
+      }
+      else {
+        connection.createStatement() ;
+        sendOK( message ) ;
+      }
+    }
+    finally {
+      SilentCloser.close( stmt, rslt ) ;
+    }
   }
 
   private void doTransaction( final Message<JsonObject> message ) {
@@ -182,28 +228,59 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       }
     }
     finally {
-      close( connection ) ;
+      SilentCloser.close( connection ) ;
     }
   }
 
   private void doTransaction( final Message<JsonObject> message, final Connection connection ) {
     JsonObject reply = new JsonObject() ;
     reply.putString( "status", "ok" ) ;
+
     int timeout = message.body.getNumber( "timeout", 10000 ).intValue() ;
-    // set a timer to rollback and close
     final long timerId = vertx.setTimer( timeout, new TransactionTimeoutHandler( connection ) ) ;
 
-    // reply with the handler to continue with
     message.reply( reply, new TransactionalHandler( connection, timerId, timeout ) ) ;
   }
   
+  private class BatchTimeoutHandler implements Handler<Long> {
+    Connection connection ;
+    Statement statement ;
+    ResultSet rslt ;
+    boolean inTransaction ;
+
+    BatchTimeoutHandler( Connection conn, Statement statement, ResultSet rslt, boolean inTransaction ) {
+      this.connection = connection ;
+      this.statement = statement ;
+      this.rslt = rslt ;
+      this.inTransaction = inTransaction ;
+    }
+
+    public void handle( Long timerId ) {
+      logger.warn( "Closing batch result set and statement on timeout" ) ;
+      if( inTransaction ) {
+        SilentCloser.close( statement, rslt ) ;
+      }
+      else {
+        SilentCloser.close( connection, statement, rslt ) ;
+      }
+    }
+  }
+
   private class BatchHandler implements Handler<Message<JsonObject>> {
     Connection connection ;
+    Statement statement ;
     ResultSet rslt ;
+    boolean inTransaction ;
+    long timerId ;
+    int timeout ;
 
-    BatchHandler( Connection conn, ResultSet rslt ) {
+    BatchHandler( Connection conn, Statement statement, ResultSet rslt, boolean inTransaction, long timerId, int timeout ) {
       this.connection = connection ;
+      this.statement = statement ;
       this.rslt = rslt ;
+      this.inTransaction = inTransaction ;
+      this.timerId = timerId ;
+      this.timeout = timeout ;
     }
 
     public void handle( final Message<JsonObject> message ) {
@@ -221,7 +298,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       logger.warn( "Closing and rolling back transaction on timeout") ;
       try {
         connection.rollback() ;
-        connection.close() ;   
+        SilentCloser.close( connection ) ;
       } catch ( SQLException ex ) {
         logger.error( "Failed to rollback on transaction timeout", ex ) ;
       }
@@ -236,6 +313,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     TransactionalHandler( Connection connection, long timerId, int timeout ) {
       this.connection = connection ;
       this.timerId = timerId ;
+      this.timeout = timeout ;
     }
 
     public void handle( final Message<JsonObject> message ) {
@@ -254,12 +332,24 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
           timerId = vertx.setTimer( timeout, new TransactionTimeoutHandler( connection ) ) ;
           break ;
         case "update" :
-          doUpdate( message, connection, false ) ;
-          timerId = vertx.setTimer( timeout, new TransactionTimeoutHandler( connection ) ) ;
+          try {
+            doUpdate( message, connection, false ) ;
+            timerId = vertx.setTimer( timeout, new TransactionTimeoutHandler( connection ) ) ;
+          }
+          catch( SQLException ex ) {
+            sendError( message, "Error performing insert.  Rolling back.", ex ) ;
+            doRollback( null ) ;
+          }
           break ;
         case "insert" :
-          doUpdate( message, connection, true ) ;
-          timerId = vertx.setTimer( timeout, new TransactionTimeoutHandler( connection ) ) ;
+          try {
+            doUpdate( message, connection, true ) ;
+            timerId = vertx.setTimer( timeout, new TransactionTimeoutHandler( connection ) ) ;
+          }
+          catch( SQLException ex ) {
+            sendError( message, "Error performing insert.  Rolling back.", ex ) ;
+            doRollback( null ) ;
+          }
           break ;
         case "commit" :
           doCommit( message ) ;
@@ -269,34 +359,26 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
           break ;
         default:
           sendError( message, "Invalid action : " + action + ". Rolling back." ) ;
-          doRollback( message ) ;
+          doRollback( null ) ;
       }
     }
 
     private void doCommit( final Message<JsonObject> message ) {
-      try { connection.commit() ; }
+      try {
+        connection.commit() ;
+        if( message != null ) sendOK( message ) ;
+      }
       catch( SQLException ex ) { logger.error( "Failed to commit", ex ) ; }
-      finally { close( connection ) ; }
+      finally { SilentCloser.close( connection ) ; }
     }
 
     private void doRollback( final Message<JsonObject> message ) {
-      try { connection.rollback() ; }
+      try {
+        connection.rollback() ;
+        if( message != null ) sendOK( message ) ;
+      }
       catch( SQLException ex ) { logger.error( "Failed to rollback", ex ) ; }
-      finally { close( connection ) ; }
+      finally { SilentCloser.close( connection ) ; }
     }
-  }
-
-  private void close( Connection conn )                 { close( conn, null, null ) ; }
-  private void close( Statement stmt  )                 { close( null, stmt, null ) ; }
-  private void close( ResultSet rslt  )                 { close( null, null, rslt ) ; }
-  private void close( Connection conn, Statement stmt ) { close( conn, stmt, null ) ; }
-  private void close( Statement stmt, ResultSet rslt )  { close( null, stmt, rslt ) ; }
-  private void close( Connection conn, Statement stmt, ResultSet rslt ) {
-    try { if( rslt != null ) rslt.close() ; }
-    catch( SQLException ex ) { logger.error( "Problems closing result set", ex ) ; }
-    try { if( stmt != null ) stmt.close() ; }
-    catch( SQLException ex ) { logger.error( "Problems closing statement set", ex ) ; }
-    try { if( conn != null ) conn.close() ; }
-    catch( SQLException ex ) { logger.error( "Problems closing connection set", ex ) ; }
   }
 }
