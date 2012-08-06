@@ -127,7 +127,20 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
   }
 
   private void doExecute( final Message<JsonObject> message, Connection conn ) {
-    sendError( message, "EXECUTE is not yet implemented." ) ;
+    Connection connection = null ;
+    Statement statement = null ;
+    try {
+      connection = pool.getConnection() ;
+      statement = connection.createStatement() ;
+      statement.execute( message.body.getString( "stmt" ) ) ;
+      sendOK( message ) ;
+    }
+    catch( SQLException ex ) {
+      sendError( message, "Error with EXECUTE", ex ) ;
+    }
+    finally {
+      close( connection, statement ) ;
+    }
   }
 
   private void doUpdate( final Message<JsonObject> message, boolean insert ) {
