@@ -37,7 +37,6 @@ import org.apache.commons.dbutils.handlers.LimitedMapListHandler ;
 import org.vertx.java.busmods.BusModBase ;
 import org.vertx.java.core.Handler ;
 import org.vertx.java.core.eventbus.Message ;
-import org.vertx.java.core.impl.VertxInternal ;
 import org.vertx.java.core.json.JsonArray ;
 import org.vertx.java.core.json.JsonObject ;
 
