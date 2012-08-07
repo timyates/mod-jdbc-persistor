@@ -33,6 +33,11 @@ public class JavaScriptPersistorTest extends TestBase {
   }
 
   @Test
+  public void testBatchedSimpleSelector() throws Exception {
+    startTest(getMethodName());
+  }
+
+  @Test
   public void testSimpleSelect() throws Exception {
     startTest(getMethodName());
   }

@@ -23,11 +23,13 @@ public class LimitedMapListHandler extends MapListHandler {
   public List<Map<String,Object>> handle( ResultSet rs ) throws SQLException {
     List<Map<String,Object>> rows = new ArrayList<Map<String,Object>>();
     while( limit == -1 || rows.size() < limit ) {
-      if( !rs.next() ) {
+      if( rs.next() ) {
+        rows.add( this.handleRow( rs ) ) ;
+      }
+      else {
         expired = true ;
         break ;
       }
-      rows.add( this.handleRow( rs ) ) ;
     }
     return rows ;
   }
