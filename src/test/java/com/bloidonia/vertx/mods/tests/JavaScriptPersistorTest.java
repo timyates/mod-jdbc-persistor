@@ -1,4 +1,4 @@
-package org.vertx.mods.tests;
+package com.bloidonia.vertx.mods.tests ;
 
 /*
  * Copyright 2011-2012 the original author or authors.
@@ -44,6 +44,16 @@ public class JavaScriptPersistorTest extends TestBase {
 
   @Test
   public void testCreateAndInsert() throws Exception {
+    startTest(getMethodName());
+  }
+
+  @Test
+  public void testRollback() throws Exception {
+    startTest(getMethodName());
+  }
+
+  @Test
+  public void testCommit() throws Exception {
     startTest(getMethodName());
   }
 }
