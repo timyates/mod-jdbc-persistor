@@ -136,27 +136,6 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     }
   }
 
-  private List<Map<String,Object>> processValues( Connection connection, QueryRunner runner, String stmt, JsonArray values ) throws SQLException {
-    Iterator<Object> iter = values.iterator() ;
-    Object first = iter.next() ;
-    List<Map<String,Object>> result = null ;
-    if( first instanceof JsonArray ) { // List of lists...
-      result = processValues( connection, runner, stmt, (JsonArray)first ) ;
-      while( iter.hasNext() ) {
-        result.addAll( processValues( connection, runner, stmt, (JsonArray)iter.next() ) ) ;
-      }
-    }
-    else {
-      List<Object> params = new ArrayList<Object>() ;
-      params.add( first ) ;
-      while( iter.hasNext() ) {
-        params.add( iter.next() ) ;
-      }
-      result = runner.query( connection, stmt, new MapListHandler(), params.toArray( new Object[] {} ) ) ;
-    }
-    return result ;
-  }
-
   private void doSelect( final Message<JsonObject> message, Connection connection ) throws SQLException {
     doSelect( message, connection, null ) ;
   }
@@ -165,24 +144,11 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     JsonArray values = message.body.getArray( "values" ) ;
     String statementString = message.body.getString( "stmt" ) ;
     int batchSize = message.body.getNumber( "batchsize", -1 ).intValue() ;
-    if( batchSize <= 0 ) batchSize = -1 ;
-    LimitedMapListHandler handler = new LimitedMapListHandler( batchSize ) ;
-    List<Map<String,Object>> result ;
-    QueryRunner runner = new QueryRunner() ;
-    if( values != null ) {
-      result = processValues( connection, runner, statementString, values ) ;
-    }
-    else {
-      result = runner.query( connection, statementString, handler ) ;
-    }
+    int timeout = message.body.getNumber( "timeout", 10000 ).intValue() ;
 
-    JsonObject reply = new JsonObject() ;
-    JsonArray rows = new JsonArray() ;
-    for( Map<String,Object> row : result ) {
-      rows.addObject( new JsonObject( row ) ) ;
-    }
-    reply.putArray( "result", rows ) ;
-    sendOK( message, reply ) ;
+    if( batchSize <= 0 ) batchSize = -1 ;
+
+    new BatchHandler( connection, message, transaction ).handle( message ) ;
   }
 
   /****************************************************************************
@@ -217,22 +183,105 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
 
   private class BatchHandler implements Handler<Message<JsonObject>> {
     Connection connection ;
-    Statement statement ;
-    ResultSet rslt ;
-    boolean inTransaction ;
+    String statementString ;
+    List<List<Object>> values ;
+    Iterator<List<Object>> valueIterator ;
+    TransactionalHandler transaction ;
     long timerId ;
     int timeout ;
+    int batchSize ;
+    PreparedStatement statement ;
+    ResultSet resultSet ;
 
-    BatchHandler( Connection conn, Statement statement, ResultSet rslt, boolean inTransaction, long timerId, int timeout ) {
+    BatchHandler( Connection connection, Message<JsonObject> initial, TransactionalHandler transaction ) throws SQLException {
       this.connection = connection ;
-      this.statement = statement ;
-      this.rslt = rslt ;
-      this.inTransaction = inTransaction ;
-      this.timerId = timerId ;
-      this.timeout = timeout ;
+      this.statement = connection.prepareStatement( initial.body.getString( "stmt" ) ) ;
+      this.batchSize = initial.body.getNumber( "batchsize", -1 ).intValue() ;
+      if( this.batchSize <= 0 ) this.batchSize = -1 ;
+      this.timeout = initial.body.getNumber( "timeout", 10000 ).intValue() ;
+      this.transaction = transaction ;
+      this.timerId = -1 ;
+
+      // create a List<List<Object>> from the values
+      this.values = JsonUtils.arrayNormaliser( initial.body.getArray( "values" ) ) ;
+      if( this.values != null ) {
+        this.valueIterator = values.iterator() ;
+      }
+      else {
+        this.valueIterator = null ;
+      }
     }
 
     public void handle( final Message<JsonObject> message ) {
+      if( timerId != -1 ) {
+        vertx.cancelTimer( timerId ) ;
+      }
+      JsonObject reply = new JsonObject() ;
+      try {
+        // processing
+        ArrayList<Map<String,Object>> result = new ArrayList<Map<String,Object>>() ;
+        if( this.valueIterator == null ) {
+          if( resultSet == null ) {
+            resultSet = statement.executeQuery() ;
+          }
+          LimitedMapListHandler handler = new LimitedMapListHandler( batchSize == -1 ? -1 : batchSize - result.size() ) ;
+          result.addAll( handler.handle( resultSet ) ) ;
+          if( result.size() < batchSize || handler.isExpired() ) {
+            SilentCloser.close( resultSet ) ;
+            resultSet = null ;
+          }
+        }
+        else {
+          while( valueIterator.hasNext() && ( batchSize == -1 || result.size() < batchSize ) ) {
+            if( resultSet == null ) {
+              List<Object> params = valueIterator.next() ;
+              new QueryRunner().fillStatement( statement, params.toArray( new Object[] {} ) ) ;
+              resultSet = statement.executeQuery() ;
+            }
+            LimitedMapListHandler handler = new LimitedMapListHandler( batchSize == -1 ? -1 : batchSize - result.size() ) ;
+            result.addAll( handler.handle( resultSet ) ) ;
+            if( handler.isExpired() ) {
+              SilentCloser.close( resultSet ) ;
+              resultSet = null ;
+            }
+          }
+        }
+        JsonArray rows = new JsonArray() ;
+        for( Map<String,Object> row : result ) {
+          rows.addObject( new JsonObject( row ) ) ;
+        }
+        reply.putArray( "result", rows ) ;
+        logger.info( "BATCH RETURNING " + reply ) ;
+        if( resultSet != null || ( this.valueIterator != null && this.valueIterator.hasNext() ) ) {
+          reply.putString( "status", "partial" ) ;
+          message.reply( reply, this ) ;
+          timerId = vertx.setTimer( timeout, new BatchTimeoutHandler( connection, statement, resultSet, transaction != null ) ) ;
+        }
+        else if( transaction == null ) {
+          SilentCloser.close( connection, statement ) ;
+          sendOK( message, reply ) ;
+        }
+        else {
+          SilentCloser.close( statement ) ;
+          reply.putString( "status", "ok" ) ;
+          message.reply( reply, transaction ) ;
+        }
+      }
+      catch( SQLException ex ) {
+        if( transaction == null ) {
+          SilentCloser.close( connection, statement, resultSet ) ;
+          sendError( message, "Error performing batch select", ex ) ;
+        }
+        else {
+          SilentCloser.close( statement ) ;
+          reply.putString( "status", "error" ) ;
+          reply.putString( "message", "Error performing transactional batch select" ) ;
+          logger.error( "Error performing transactional batch select", ex ) ;
+          try { connection.rollback() ; } catch( SQLException exx ) {}
+          SilentCloser.close( connection, statement, resultSet ) ;
+          message.reply( reply, transaction ) ;
+        }
+      }
     }
   }
 
@@ -384,7 +433,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
           rows.addObject( new JsonObject( row ) ) ;
         }
         reply.putArray( "result", rows ) ;
-        logger.warn( "INSERT RETURNING " + reply ) ;
+        logger.info( "INSERT RETURNING " + reply ) ;
         if( transaction == null ) {
           sendOK( message, reply ) ;
         }
@@ -483,7 +532,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     public void handle( final Message<JsonObject> message ) {
       vertx.cancelTimer( timerId ) ;
       String action = message.body.getString( "action" ) ;
-      logger.warn( "TransactionHandler processing " + action ) ;
+      logger.info( "TransactionHandler processing " + action ) ;
       if( action == null ) {
         sendError( message, "action must be specified" ) ;
       }

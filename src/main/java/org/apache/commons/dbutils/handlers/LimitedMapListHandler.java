@@ -9,6 +9,7 @@ import java.util.Map ;
 
 public class LimitedMapListHandler extends MapListHandler {
   private int limit ;
+  private boolean expired = false ;
 
   public LimitedMapListHandler() {
     this( -1 ) ;
@@ -21,9 +22,17 @@ public class LimitedMapListHandler extends MapListHandler {
   @Override
   public List<Map<String,Object>> handle( ResultSet rs ) throws SQLException {
     List<Map<String,Object>> rows = new ArrayList<Map<String,Object>>();
-    while( rs.next() && ( limit == -1 || rows.size() < limit ) ) {
+    while( limit == -1 || rows.size() < limit ) {
+      if( !rs.next() ) {
+        expired = true ;
+        break ;
+      }
       rows.add( this.handleRow( rs ) ) ;
     }
     return rows ;
+  }
+
+  public boolean isExpired() {
+    return expired ;
   }
 }
