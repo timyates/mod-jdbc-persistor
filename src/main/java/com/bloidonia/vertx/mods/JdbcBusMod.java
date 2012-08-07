@@ -193,7 +193,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       this.statement = connection.prepareStatement( initial.body.getString( "stmt" ) ) ;
       this.batchSize = initial.body.getNumber( "batchsize", -1 ).intValue() ;
       if( this.batchSize <= 0 ) this.batchSize = -1 ;
-      this.timeout = initial.body.getNumber( "timeout", 10000 ).intValue() ;
+      this.timeout = initial.body.getNumber( "batchtimeout", 10000 ).intValue() ;
       this.transaction = transaction ;
       this.timerId = -1 ;
 
@@ -246,7 +246,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
         }
         reply.putArray( "result", rows ) ;
         if( resultSet != null || ( valueIterator != null && valueIterator.hasNext() ) ) {
-          reply.putString( "status", "partial" ) ;
+          reply.putString( "status", "more-exist" ) ;
           logger.info( "BATCH RETURNING " + reply ) ;
           message.reply( reply, this ) ;
           timerId = vertx.setTimer( timeout, new BatchTimeoutHandler( connection, statement, resultSet, transaction != null ) ) ;

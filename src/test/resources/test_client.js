@@ -51,7 +51,7 @@ function testBatchedSimpleSelector() {
       received += reply.result.length ;
       if( received < num ) {
         tu.azzert( reply.result.length === 10 ) ;
-        tu.azzert( reply.status === 'partial' ) ;
+        tu.azzert( reply.status === 'more-exist' ) ;
         replier( {}, createReplyHandler() ) ;
       } else {
         tu.azzert( reply.result.length === 3 ) ;
