@@ -67,7 +67,7 @@ task prepareVertxModule( type:Copy, dependsOn: 'classes' ) {
 }
 
 // Package into build/libs/mod.zip
-task dist( type: Zip, dependsOn: 'copyMod' ) {
+task dist( type: Zip, dependsOn: 'prepareVertxModule' ) {
   group = 'vert.x'
   description = "Assembles a vert.x module in 'mod.zip' format"
   destinationDir = project.file('build/libs')
