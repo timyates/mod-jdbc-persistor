@@ -109,3 +109,8 @@ task collectDeps(type: Copy) {
     from configurations.testCompile
   }
 }
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '1.1'
+    jarFile = 'gradle/wrapper.jar'
+}
