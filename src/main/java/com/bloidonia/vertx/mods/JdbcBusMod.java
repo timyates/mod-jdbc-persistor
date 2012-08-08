@@ -331,27 +331,6 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
    **
    ****************************************************************************/
 
-  private List<Map<String,Object>> processInsertValues( PreparedStatement stmt, QueryRunner qr, MapListHandler handler, List<List<Object>> values ) throws SQLException {
-    List<Map<String,Object>> result = new ArrayList<Map<String,Object>>() ;
-    for( List<Object> params : values ) {
-      qr.fillStatement( stmt, params.toArray( new Object[] {} ) ) ;
-      stmt.executeUpdate() ;
-      ResultSet rslt = stmt.getGeneratedKeys() ;
-      result.addAll( handler.handle( rslt ) ) ;
-      SilentCloser.close( rslt ) ;
-    }
-    return result ;
-  }
-
-  private int processUpdateValues( PreparedStatement stmt, QueryRunner qr, List<List<Object>> values ) throws SQLException {
-    int result = 0 ;
-    for( List<Object> params : values ) {
-      qr.fillStatement( stmt, params.toArray( new Object[] {} ) ) ;
-      result += stmt.executeUpdate() ;
-    }
-    return result ;
-  }
-
   private void doUpdate( final Message<JsonObject> message, boolean insert ) {
     Connection connection = null ;
     try {
@@ -384,15 +363,22 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     try {
       if( insert ) {
         MapListHandler handler = new MapListHandler() ;
-        List<Map<String,Object>> result ;
+        List<Map<String,Object>> result = new ArrayList<Map<String,Object>>() ;
         stmt = connection.prepareStatement( statementString, Statement.RETURN_GENERATED_KEYS ) ;
         if( values != null ) {
-          result = processInsertValues( stmt, new QueryRunner(), handler, values ) ;
+          QueryRunner qr = new QueryRunner() ;
+          for( List<Object> params : values ) {
+            qr.fillStatement( stmt, params.toArray( new Object[] {} ) ) ;
+            stmt.executeUpdate() ;
+            ResultSet rslt = stmt.getGeneratedKeys() ;
+            result.addAll( handler.handle( rslt ) ) ;
+            SilentCloser.close( rslt ) ;
+          }
         }
         else {
           stmt.executeUpdate();
           ResultSet rslt = stmt.getGeneratedKeys();
-          result = handler.handle( rslt ) ;
+          result.addAll( handler.handle( rslt ) ) ;
           SilentCloser.close( rslt ) ;
         }
 
@@ -415,7 +401,11 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
         stmt = connection.prepareStatement( statementString ) ;
         int nRows = 0 ;
         if( values != null ) {
-          nRows = processUpdateValues( stmt, new QueryRunner(), values ) ;
+          QueryRunner qr = new QueryRunner() ;
+          for( List<Object> params : values ) {
+            qr.fillStatement( stmt, params.toArray( new Object[] {} ) ) ;
+            nRows += stmt.executeUpdate() ;
+          }
         }
         else {
           nRows += stmt.executeUpdate();
