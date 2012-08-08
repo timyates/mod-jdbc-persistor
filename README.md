@@ -146,7 +146,7 @@ One of:
     {
       status: "ok",
       result: [ { "ID":1 }, { "ID":2 }, ... ]
-      updated: nrows
+      updated: <nrows>
     }
 
 or
@@ -170,7 +170,7 @@ or
 
     {
       status: "ok",
-      updated: nrows
+      updated: <nrows>
     }
 
 or
