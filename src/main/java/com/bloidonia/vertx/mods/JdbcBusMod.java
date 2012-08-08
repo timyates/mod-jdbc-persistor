@@ -239,11 +239,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
             }
           }
         }
-        JsonArray rows = new JsonArray() ;
-        for( Map<String,Object> row : result ) {
-          rows.addObject( new JsonObject( row ) ) ;
-        }
-        reply.putArray( "result", rows ) ;
+        reply.putArray( "result", JsonUtils.listOfMapsToJsonArray( result ) ) ;
         if( resultSet != null || ( valueIterator != null && valueIterator.hasNext() ) ) {
           reply.putString( "status", "more-exist" ) ;
           logger.info( "BATCH RETURNING " + reply ) ;
@@ -383,11 +379,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
         }
 
         JsonObject reply = new JsonObject() ;
-        JsonArray rows = new JsonArray() ;
-        for( Map<String,Object> row : result ) {
-          rows.addObject( new JsonObject( row ) ) ;
-        }
-        reply.putArray( "result", rows ) ;
+        reply.putArray( "result", JsonUtils.listOfMapsToJsonArray( result ) ) ;
         logger.info( "INSERT RETURNING " + reply ) ;
         if( transaction == null ) {
           sendOK( message, reply ) ;

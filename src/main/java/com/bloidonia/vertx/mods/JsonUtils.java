@@ -19,8 +19,10 @@ package com.bloidonia.vertx.mods ;
 import java.util.ArrayList ;
 import java.util.Iterator ;
 import java.util.List ;
+import java.util.Map ;
 
 import org.vertx.java.core.json.JsonArray ;
+import org.vertx.java.core.json.JsonObject ;
 
 public class JsonUtils {
   public static List<Object> unwrapper( JsonArray array ) {
@@ -49,5 +51,13 @@ public class JsonUtils {
       ret.add( unwrapper( array ) ) ;
     }
     return ret ;
+  }
+
+  public static JsonArray listOfMapsToJsonArray( List<Map<String,Object>> result ) {
+    JsonArray rows = new JsonArray() ;
+    for( Map<String,Object> row : result ) {
+      rows.addObject( new JsonObject( row ) ) ;
+    }
+    return rows ;
   }
 }
