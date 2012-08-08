@@ -331,23 +331,9 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
    **
    ****************************************************************************/
 
-  private List<Map<String,Object>> processInsertValues( PreparedStatement stmt, QueryRunner qr, MapListHandler handler, JsonArray values ) throws SQLException {
-    Iterator<Object> iter = values.iterator() ;
-    Object first = iter.next() ;
-    List<Map<String,Object>> result = null ;
-    if( first instanceof JsonArray ) { // List of lists...
-      result = processInsertValues( stmt, qr, handler, (JsonArray)first ) ;
-      while( iter.hasNext() ) {
-        result.addAll( processInsertValues( stmt, qr, handler, (JsonArray)iter.next() ) ) ;
-      }
-    }
-    else {
-      result = new ArrayList<Map<String,Object>>() ;
-      List<Object> params = new ArrayList<Object>() ;
-      params.add( first ) ;
-      while( iter.hasNext() ) {
-        params.add( iter.next() ) ;
-      }
+  private List<Map<String,Object>> processInsertValues( PreparedStatement stmt, QueryRunner qr, MapListHandler handler, List<List<Object>> values ) throws SQLException {
+    List<Map<String,Object>> result = new ArrayList<Map<String,Object>>() ;
+    for( List<Object> params : values ) {
       qr.fillStatement( stmt, params.toArray( new Object[] {} ) ) ;
       stmt.executeUpdate() ;
       ResultSet rslt = stmt.getGeneratedKeys() ;
@@ -357,22 +343,9 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     return result ;
   }
 
-  private int processUpdateValues( PreparedStatement stmt, QueryRunner qr, JsonArray values ) throws SQLException {
-    Iterator<Object> iter = values.iterator() ;
-    Object first = iter.next() ;
+  private int processUpdateValues( PreparedStatement stmt, QueryRunner qr, List<List<Object>> values ) throws SQLException {
     int result = 0 ;
-    if( first instanceof JsonArray ) { // List of lists...
-      result += processUpdateValues( stmt, qr, (JsonArray)first ) ;
-      while( iter.hasNext() ) {
-        result += processUpdateValues( stmt, qr, (JsonArray)iter.next() ) ;
-      }
-    }
-    else {
-      List<Object> params = new ArrayList<Object>() ;
-      params.add( first ) ;
-      while( iter.hasNext() ) {
-        params.add( iter.next() ) ;
-      }
+    for( List<Object> params : values ) {
       qr.fillStatement( stmt, params.toArray( new Object[] {} ) ) ;
       result += stmt.executeUpdate() ;
     }
@@ -404,7 +377,8 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
   }
 
   private void doUpdate( final Message<JsonObject> message, Connection connection, boolean insert, TransactionalHandler transaction ) throws SQLException {
-    JsonArray values = message.body.getArray( "values" ) ;
+    List<List<Object>> values = JsonUtils.arrayNormaliser( message.body.getArray( "values" ) ) ;
+
     String statementString = message.body.getString( "stmt" ) ;
     PreparedStatement stmt = null ;
     try {
