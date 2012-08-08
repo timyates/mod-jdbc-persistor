@@ -243,31 +243,24 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
         // processing
         int nRows = 0 ;
         if( insert ) {
-          if( valueIterator == null ) {
-            LimitedMapListHandler handler = new LimitedMapListHandler( batchSize == -1 ? -1 : batchSize ) ;
+          while( ( resultSet != null || valueIterator.hasNext() ) &&
+                 ( batchSize == -1 || result.size() < batchSize ) ) {
+            LimitedMapListHandler handler = new LimitedMapListHandler( batchSize == -1 ? -1 : batchSize - result.size() ) ;
             if( resultSet == null ) {
+              List<Object> params = valueIterator.next() ;
+              new QueryRunner().fillStatement( statement, params.toArray( new Object[] {} ) ) ;
               nRows += statement.executeUpdate() ;
               resultSet = statement.getGeneratedKeys() ;
             }
             store( result, handler ) ;
           }
-          else {
-            while( valueIterator.hasNext() && ( batchSize == -1 || result.size() < batchSize ) ) {
-              LimitedMapListHandler handler = new LimitedMapListHandler( batchSize == -1 ? -1 : batchSize - result.size() ) ;
-              if( resultSet == null ) {
-                List<Object> params = valueIterator.next() ;
-                new QueryRunner().fillStatement( statement, params.toArray( new Object[] {} ) ) ;
-                nRows += statement.executeUpdate() ;
-                resultSet = statement.getGeneratedKeys() ;
-              }
-              store( result, handler ) ;
-            }
-          }
           reply.putArray( "result", JsonUtils.listOfMapsToJsonArray( result ) ) ;
         }
         else {
-          if( valueIterator == null ) {
-            nRows += statement.executeUpdate();
+          while( valueIterator.hasNext() ) {
+            List<Object> params = valueIterator.next() ;
+            new QueryRunner().fillStatement( statement, params.toArray( new Object[] {} ) ) ;
+            nRows += statement.executeUpdate() ;
           }
         }
         reply.putNumber( "updated", nRows ) ;
