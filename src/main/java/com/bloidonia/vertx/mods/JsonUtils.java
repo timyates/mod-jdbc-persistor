@@ -36,7 +36,9 @@ public class JsonUtils {
 
   public static List<List<Object>> arrayNormaliser( JsonArray array ) {
     if( array == null ) {
-      return null ;
+      return new ArrayList<List<Object>>() {{
+        add( new ArrayList() ) ;
+      }} ;
     }
     Iterator<Object> iter = array.iterator() ;
     Object first = iter.next() ;

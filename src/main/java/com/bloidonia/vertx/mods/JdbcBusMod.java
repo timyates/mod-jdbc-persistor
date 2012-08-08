@@ -142,31 +142,15 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
         JsonObject reply = new JsonObject() ;
         ArrayList<Map<String,Object>> result = new ArrayList<Map<String,Object>>() ;
         // processing
-        if( valueIterator == null ) {
-          LimitedMapListHandler handler = new LimitedMapListHandler( batchSize == -1 ? -1 : batchSize ) ;
+        while( ( resultSet != null || valueIterator.hasNext() ) &&
+               ( batchSize == -1 || result.size() < batchSize ) ) {
+          LimitedMapListHandler handler = new LimitedMapListHandler( batchSize == -1 ? -1 : batchSize - result.size() ) ;
           if( resultSet == null ) {
+            List<Object> params = valueIterator.next() ;
+            new QueryRunner().fillStatement( statement, params.toArray( new Object[] {} ) ) ;
             resultSet = statement.executeQuery() ;
           }
-          result.addAll( handler.handle( resultSet ) ) ;
-          if( handler.isExpired() ) {
-            SilentCloser.close( resultSet ) ;
-            resultSet = null ;
-          }
-        }
-        else {
-          while( valueIterator.hasNext() && ( batchSize == -1 || result.size() < batchSize ) ) {
-            LimitedMapListHandler handler = new LimitedMapListHandler( batchSize == -1 ? -1 : batchSize - result.size() ) ;
-            if( resultSet == null ) {
-              List<Object> params = valueIterator.next() ;
-              new QueryRunner().fillStatement( statement, params.toArray( new Object[] {} ) ) ;
-              resultSet = statement.executeQuery() ;
-            }
-            result.addAll( handler.handle( resultSet ) ) ;
-            if( handler.isExpired() ) {
-              SilentCloser.close( resultSet ) ;
-              resultSet = null ;
-            }
-          }
+          store( result, handler ) ;
         }
         reply.putArray( "result", JsonUtils.listOfMapsToJsonArray( result ) ) ;
         return reply ;
@@ -232,11 +216,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       doUpdate( message, connection, insert ) ;
     }
     catch( SQLException ex ) {
-      sendError( message, "Caught error with UPDATE.  Rolling back...", ex ) ;
-      try { connection.rollback() ; }
-      catch( SQLException exx ) {
-        logger.error( "Failed to rollback", exx ) ;
-      }
+      sendError( message, "Caught error with UPDATE.", ex ) ;
     }
     finally {
       SilentCloser.close( connection ) ;
@@ -269,11 +249,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
               nRows += statement.executeUpdate() ;
               resultSet = statement.getGeneratedKeys() ;
             }
-            result.addAll( handler.handle( resultSet ) ) ;
-            if( handler.isExpired() ) {
-              SilentCloser.close( resultSet ) ;
-              resultSet = null ;
-            }
+            store( result, handler ) ;
           }
           else {
             while( valueIterator.hasNext() && ( batchSize == -1 || result.size() < batchSize ) ) {
@@ -284,11 +260,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
                 nRows += statement.executeUpdate() ;
                 resultSet = statement.getGeneratedKeys() ;
               }
-              result.addAll( handler.handle( resultSet ) ) ;
-              if( handler.isExpired() ) {
-                SilentCloser.close( resultSet ) ;
-                resultSet = null ;
-              }
+              store( result, handler ) ;
             }
           }
           reply.putArray( "result", JsonUtils.listOfMapsToJsonArray( result ) ) ;
@@ -369,7 +341,6 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     public void handle( final Message<JsonObject> message ) {
       vertx.cancelTimer( timerId ) ;
       String action = message.body.getString( "action" ) ;
-      logger.info( "TransactionHandler processing " + action ) ;
       if( action == null ) {
         sendError( message, "action must be specified" ) ;
       }
@@ -468,7 +439,6 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       this.connection = connection ;
       this.transaction = transaction ;
       this.timerId = -1 ;
-      initialiseStatement( initial ) ;
       this.batchSize = initial.body.getNumber( "batchsize", -1 ).intValue() ;
       if( this.batchSize <= 0 ) this.batchSize = -1 ;
       this.timeout = initial.body.getNumber( "batchtimeout", 10000 ).intValue() ;
@@ -481,6 +451,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       else {
         this.valueIterator = null ;
       }
+      initialiseStatement( initial ) ;
     }
 
     void initialiseStatement( Message<JsonObject> initial ) throws SQLException {
@@ -489,6 +460,14 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
 
     public abstract JsonObject process() throws SQLException ;
 
+    void store( ArrayList<Map<String,Object>> result, LimitedMapListHandler handler ) throws SQLException {
+      result.addAll( handler.handle( resultSet ) ) ;
+      if( handler.isExpired() ) {
+        SilentCloser.close( resultSet ) ;
+        resultSet = null ;
+      }
+    }
+
     public void handle( final Message<JsonObject> message ) {
       if( timerId != -1 ) {
         vertx.cancelTimer( timerId ) ;
@@ -496,9 +475,8 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       JsonObject reply ;
       try {
         reply = process() ;
-        if( resultSet != null || ( valueIterator != null && valueIterator.hasNext() ) ) {
+        if( resultSet != null || valueIterator.hasNext() ) {
           reply.putString( "status", "more-exist" ) ;
-          logger.info( "BATCH RETURNING " + reply ) ;
           message.reply( reply, this ) ;
           if( transaction == null ) {
             timerId = vertx.setTimer( timeout, new BatchTimeoutHandler( connection, statement, resultSet ) ) ;
@@ -509,13 +487,11 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
         }
         else if( transaction == null ) {
           SilentCloser.close( connection, statement ) ;
-          logger.info( "BATCH RETURNING " + reply ) ;
           sendOK( message, reply ) ;
         }
         else {
           SilentCloser.close( statement ) ;
           reply.putString( "status", "ok" ) ;
-          logger.info( "BATCH RETURNING " + reply ) ;
           message.reply( reply, transaction ) ;
         }
       }
