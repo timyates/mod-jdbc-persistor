@@ -75,8 +75,10 @@ function testBatchedSimpleSelector() {
       action: 'insert',
       stmt:  'INSERT INTO simpleselect ( name, age ) VALUES ( ?, ? )',
       values: values
-    }, function(reply) {
-      tu.azzert(reply.status === 'ok');
+    }, function( reply ) {
+      tu.azzert( reply.status === 'ok' ) ;
+      tu.azzert( reply.updated === num, 'updated should equal ' + num + ', actually was ' + reply.updated ) ;
+      tu.azzert( reply.result.length === num, 'should get back ' + num + ', primary keys' ) ;
       eb.send('test.persistor', {
         action: 'select',
         stmt:   'SELECT * FROM simpleselect ORDER BY age ASC',
