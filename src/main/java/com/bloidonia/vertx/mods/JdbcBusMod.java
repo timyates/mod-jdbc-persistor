@@ -85,6 +85,14 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
   public void stop() {
     eb.unregisterHandler( address, this ) ;
     if( pool != null ) {
+      try {
+        logger.info( String.format( "Closing pool. (nConn: %d, nIdle: %d, nBusy: %d, nUnclosed: %d)",
+                                     pool.getNumConnections(),
+                                     pool.getNumIdleConnections(), 
+                                     pool.getNumBusyConnections(),
+                                     pool.getNumUnclosedOrphanedConnections() ) ) ;
+      }
+      catch( SQLException dontcare ) {}
       pool.close() ;
     }
   }
