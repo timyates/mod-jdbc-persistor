@@ -451,7 +451,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       this.statement = connection.prepareStatement( initial.body.getString( "stmt" ) ) ;
     }
 
-    public abstract JsonObject process() throws SQLException ;
+    abstract JsonObject process() throws SQLException ;
 
     void store( ArrayList<Map<String,Object>> result,
                 LimitedMapListHandler handler ) throws SQLException {
