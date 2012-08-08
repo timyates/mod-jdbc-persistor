@@ -182,11 +182,9 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     }
   }
 
-  private void doExecute( final Message<JsonObject> message, Connection conn, TransactionalHandler transaction ) throws SQLException {
-    Connection connection = null ;
+  private void doExecute( final Message<JsonObject> message, Connection connection, TransactionalHandler transaction ) throws SQLException {
     Statement statement = null ;
     try {
-      connection = pool.getConnection() ;
       statement = connection.createStatement() ;
       statement.execute( message.body.getString( "stmt" ) ) ;
       if( transaction == null ) {
