@@ -129,7 +129,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
    **
    ****************************************************************************/
 
-  private void doSelect( final Message<JsonObject> message ) {
+  private void doSelect( Message<JsonObject> message ) {
     Connection connection = null ;
     try {
       connection = pool.getConnection() ;
@@ -140,7 +140,9 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     }
   }
 
-  private void doSelect( final Message<JsonObject> message, Connection connection, TransactionalHandler transaction ) throws SQLException {
+  private void doSelect( Message<JsonObject> message,
+                         Connection connection,
+                         TransactionalHandler transaction ) throws SQLException {
     new BatchHandler( connection, message, transaction ) {
       public JsonObject process() throws SQLException {
         JsonObject reply = new JsonObject() ;
@@ -168,7 +170,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
    **
    ****************************************************************************/
 
-  private void doExecute( final Message<JsonObject> message ) {
+  private void doExecute( Message<JsonObject> message ) {
     Connection connection = null ;
     try {
       connection = pool.getConnection() ;
@@ -182,7 +184,9 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     }
   }
 
-  private void doExecute( final Message<JsonObject> message, Connection connection, TransactionalHandler transaction ) throws SQLException {
+  private void doExecute( Message<JsonObject> message,
+                          Connection connection,
+                          TransactionalHandler transaction ) throws SQLException {
     Statement statement = null ;
     try {
       statement = connection.createStatement() ;
@@ -207,7 +211,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
    **
    ****************************************************************************/
 
-  private void doUpdate( final Message<JsonObject> message, boolean insert ) {
+  private void doUpdate( Message<JsonObject> message, boolean insert ) {
     Connection connection = null ;
     try {
       connection = pool.getConnection() ;
@@ -218,7 +222,10 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     }
   }
 
-  private void doUpdate( final Message<JsonObject> message, Connection connection, final boolean insert, TransactionalHandler transaction ) throws SQLException {
+  private void doUpdate( Message<JsonObject> message,
+                         Connection connection,
+                         final boolean insert,
+                         TransactionalHandler transaction ) throws SQLException {
     new BatchHandler( connection, message, transaction ) {
       void initialiseStatement( Message<JsonObject> initial ) throws SQLException {
         if( insert ) {
@@ -266,7 +273,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
    **
    ****************************************************************************/
 
-  private void doTransaction( final Message<JsonObject> message ) {
+  private void doTransaction( Message<JsonObject> message ) {
     Connection connection = null ;
     try {
       connection = pool.getConnection() ;
@@ -283,7 +290,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     }
   }
 
-  private void doTransaction( final Message<JsonObject> message, final Connection connection ) {
+  private void doTransaction( Message<JsonObject> message, Connection connection ) {
     JsonObject reply = new JsonObject() ;
     reply.putString( "status", "ok" ) ;
 
@@ -322,7 +329,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       this.timeout = timeout ;
     }
 
-    public void handle( final Message<JsonObject> message ) {
+    public void handle( Message<JsonObject> message ) {
       vertx.cancelTimer( timerId ) ;
       String action = message.body.getString( "action" ) ;
       if( action == null ) {
@@ -361,7 +368,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       }
     }
 
-    private void doCommit( final Message<JsonObject> message ) {
+    private void doCommit( Message<JsonObject> message ) {
       try {
         connection.commit() ;
         if( message != null ) sendOK( message ) ;
@@ -370,7 +377,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       finally { SilentCloser.close( connection ) ; }
     }
 
-    private void doRollback( final Message<JsonObject> message ) {
+    private void doRollback( Message<JsonObject> message ) {
       try {
         connection.rollback() ;
         if( message != null ) sendOK( message ) ;
@@ -419,7 +426,9 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     PreparedStatement statement ;
     ResultSet resultSet ;
 
-    BatchHandler( Connection connection, Message<JsonObject> initial, TransactionalHandler transaction ) throws SQLException {
+    BatchHandler( Connection connection,
+                  Message<JsonObject> initial,
+                  TransactionalHandler transaction ) throws SQLException {
       this.connection = connection ;
       this.transaction = transaction ;
       this.timerId = -1 ;
@@ -444,7 +453,8 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
 
     public abstract JsonObject process() throws SQLException ;
 
-    void store( ArrayList<Map<String,Object>> result, LimitedMapListHandler handler ) throws SQLException {
+    void store( ArrayList<Map<String,Object>> result,
+                LimitedMapListHandler handler ) throws SQLException {
       result.addAll( handler.handle( resultSet ) ) ;
       if( handler.isExpired() ) {
         SilentCloser.close( resultSet ) ;
