@@ -56,6 +56,7 @@ function testBatchedSimpleSelector() {
       } else {
         tu.azzert( reply.result.length === 3 ) ;
         tu.azzert( reply.status === 'ok' ) ;
+        tu.azzert( received === num, 'Expected ' + num + 'records in total.  Got ' + received + ' insead' ) ;
         tu.testComplete() ;
       }
     }
