@@ -218,9 +218,6 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     catch( SQLException ex ) {
       sendError( message, "Caught error with UPDATE.", ex ) ;
     }
-    finally {
-      SilentCloser.close( connection ) ;
-    }
   }
 
   private void doUpdate( final Message<JsonObject> message, Connection connection, final boolean insert, TransactionalHandler transaction ) throws SQLException {
