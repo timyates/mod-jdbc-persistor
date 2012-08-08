@@ -23,6 +23,8 @@ targetCompatibility = '1.7'
 
 jar.enabled = false // we don't need this
 
+compileJava.options.compilerArgs << "-Xlint:unchecked" << "-Werror"
+
 repositories {
   maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
   mavenCentral()
