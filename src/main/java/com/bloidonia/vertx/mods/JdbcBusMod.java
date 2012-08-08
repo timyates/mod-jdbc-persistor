@@ -125,15 +125,11 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     Connection connection = null ;
     try {
       connection = pool.getConnection() ;
-      doSelect( message, connection ) ;
+      doSelect( message, connection, null ) ;
     }
     catch( SQLException ex ) {
       sendError( message, "Caught error with SELECT", ex ) ;
     }
-  }
-
-  private void doSelect( final Message<JsonObject> message, Connection connection ) throws SQLException {
-    doSelect( message, connection, null ) ;
   }
 
   private void doSelect( final Message<JsonObject> message, Connection connection, TransactionalHandler transaction ) throws SQLException {
@@ -168,7 +164,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     Connection connection = null ;
     try {
       connection = pool.getConnection() ;
-      doExecute( message, connection ) ;
+      doExecute( message, connection, null ) ;
     }
     catch( SQLException ex ) {
       sendError( message, "Caught error with EXECUTE", ex ) ;
@@ -176,10 +172,6 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     finally {
       SilentCloser.close( connection ) ;
     }
-  }
-
-  private void doExecute( final Message<JsonObject> message, Connection conn ) throws SQLException {
-    doExecute( message, conn, null ) ;
   }
 
   private void doExecute( final Message<JsonObject> message, Connection conn, TransactionalHandler transaction ) throws SQLException {
@@ -213,7 +205,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     Connection connection = null ;
     try {
       connection = pool.getConnection() ;
-      doUpdate( message, connection, insert ) ;
+      doUpdate( message, connection, insert, null ) ;
     }
     catch( SQLException ex ) {
       sendError( message, "Caught error with UPDATE.", ex ) ;
@@ -221,10 +213,6 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     finally {
       SilentCloser.close( connection ) ;
     }
-  }
-
-  private void doUpdate( final Message<JsonObject> message, Connection connection, boolean insert ) throws SQLException {
-    doUpdate( message, connection, insert, null ) ;
   }
 
   private void doUpdate( final Message<JsonObject> message, Connection connection, final boolean insert, TransactionalHandler transaction ) throws SQLException {
