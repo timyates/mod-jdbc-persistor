@@ -25,6 +25,7 @@ import java.sql.SQLException ;
 import java.sql.Statement ;
 
 import java.util.ArrayList ;
+import java.util.concurrent.ConcurrentHashMap ;
 import java.util.Iterator ;
 import java.util.List ;
 import java.util.Map ;
@@ -51,10 +52,11 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
   private int    maxpool ;
   private int    acquire ;
 
-  private ComboPooledDataSource pool = null ;
+  private static ConcurrentHashMap<String,ComboPooledDataSource> poolMap = new ConcurrentHashMap<String,ComboPooledDataSource>( 8, 0.9f, 1 ) ;
 
   public void start() {
     super.start() ;
+
     address   = getOptionalStringConfig( "address", "vertx.jdbcpersistor" ) ;
 
     driver    = getOptionalStringConfig( "driver",   "org.hsqldb.jdbcDriver" ) ;
@@ -67,33 +69,40 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     acquire   = getOptionalIntConfig( "acquire",    5 ) ;
 
     try {
-      pool = new ComboPooledDataSource() ;
-      pool.setDriverClass( driver ) ;
-      pool.setJdbcUrl( url ) ;
-      pool.setUser( username ) ;
-      pool.setPassword( password ) ;
-      pool.setMinPoolSize( minpool ) ;
-      pool.setMaxPoolSize( maxpool ) ;
-      pool.setAcquireIncrement( acquire ) ;
+      if( poolMap.get( address ) == null ) {
+        ComboPooledDataSource pool = new ComboPooledDataSource() ;
+        pool.setDriverClass( driver ) ;
+        pool.setJdbcUrl( url ) ;
+        pool.setUser( username ) ;
+        pool.setPassword( password ) ;
+        pool.setMinPoolSize( minpool ) ;
+        pool.setMaxPoolSize( maxpool ) ;
+        pool.setAcquireIncrement( acquire ) ;
+        if( poolMap.putIfAbsent( address, pool ) != null ) {
+          logger.info( "Closing pool...not required" ) ;
+          pool.close() ;
+        }
+      }
+      eb.registerHandler( address, this ) ;
     }
-    catch( Exception e ) {
-      logger.error( "Failed to create jdbc pool", e ) ;
+    catch( Exception ex ) {
+      logger.fatal( "Error when starting JdbcBusMod", ex ) ;
     }
-    eb.registerHandler( address, this ) ;
   }
 
   public void stop() {
     eb.unregisterHandler( address, this ) ;
-    if( pool != null ) {
+    if( poolMap.get( address ) != null ) {
       try {
         logger.info( String.format( "Closing pool. (nConn: %d, nIdle: %d, nBusy: %d, nUnclosed: %d)",
-                                     pool.getNumConnections(),
-                                     pool.getNumIdleConnections(), 
-                                     pool.getNumBusyConnections(),
-                                     pool.getNumUnclosedOrphanedConnections() ) ) ;
+                                     poolMap.get( address ).getNumConnections(),
+                                     poolMap.get( address ).getNumIdleConnections(), 
+                                     poolMap.get( address ).getNumBusyConnections(),
+                                     poolMap.get( address ).getNumUnclosedOrphanedConnections() ) ) ;
       }
       catch( SQLException dontcare ) {}
-      pool.close() ;
+      poolMap.get( address ).close() ;
+      poolMap.remove( address ) ;
     }
   }
 
@@ -132,7 +141,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
   private void doSelect( Message<JsonObject> message ) {
     Connection connection = null ;
     try {
-      connection = pool.getConnection() ;
+      connection = poolMap.get( address ).getConnection() ;
       doSelect( message, connection, null ) ;
     }
     catch( SQLException ex ) {
@@ -173,7 +182,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
   private void doExecute( Message<JsonObject> message ) {
     Connection connection = null ;
     try {
-      connection = pool.getConnection() ;
+      connection = poolMap.get( address ).getConnection() ;
       doExecute( message, connection, null ) ;
     }
     catch( SQLException ex ) {
@@ -214,7 +223,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
   private void doUpdate( Message<JsonObject> message, boolean insert ) {
     Connection connection = null ;
     try {
-      connection = pool.getConnection() ;
+      connection = poolMap.get( address ).getConnection() ;
       doUpdate( message, connection, insert, null ) ;
     }
     catch( SQLException ex ) {
@@ -276,7 +285,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
   private void doTransaction( Message<JsonObject> message ) {
     Connection connection = null ;
     try {
-      connection = pool.getConnection() ;
+      connection = poolMap.get( address ).getConnection() ;
       connection.setAutoCommit( false ) ;
       doTransaction( message, connection ) ;
     }
