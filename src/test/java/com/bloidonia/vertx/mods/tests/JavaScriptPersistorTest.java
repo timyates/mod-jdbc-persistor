@@ -21,16 +21,16 @@ import org.vertx.java.framework.TestBase;
 
 public class JavaScriptPersistorTest extends TestBase {
 
-  public static int sleep( int seconds ) {
+  public static int sleep( int seconds, int id ) {
     try {
       Thread.sleep( seconds * 1000 ) ;
-      return 0 ;
+      return id ;
     }
     catch( Exception e ) {
-      return 1 ;
+      return -id ;
     }
   }
-  
+
   @Override
   protected void setUp() throws Exception {
     super.setUp();
