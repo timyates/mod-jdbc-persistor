@@ -178,6 +178,7 @@ function testRollback() {
         stmt:  'INSERT INTO trans( name, age ) VALUES ( ?, ? )',
         values: [ [ 'tim', 65 ], [ 'dave', 29 ], [ 'mike', 42 ] ]
       }, function( reply, replier ) {
+        java.lang.System.out.println( "GOT " + replier + " with " + reply ) ;
         tu.azzert( reply.status === 'ok' ) ;
         tu.azzert( reply.result.length == 3 ) ;
         replier( {
