@@ -21,6 +21,16 @@ import org.vertx.java.framework.TestBase;
 
 public class JavaScriptPersistorTest extends TestBase {
 
+  public static int sleep( int seconds ) {
+    try {
+      Thread.sleep( seconds * 1000 ) ;
+      return 0 ;
+    }
+    catch( Exception e ) {
+      return 1 ;
+    }
+  }
+  
   @Override
   protected void setUp() throws Exception {
     super.setUp();
@@ -30,6 +40,11 @@ public class JavaScriptPersistorTest extends TestBase {
   @Override
   protected void tearDown() throws Exception {
     super.tearDown();
+  }
+
+  @Test
+  public void testConcurrency() throws Exception {
+    startTest(getMethodName());
   }
 
   @Test

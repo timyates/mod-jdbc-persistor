@@ -30,6 +30,31 @@ function testInvalidAction() {
   } )
 }
 
+function testConcurrency() {
+  var todo = 10 ;
+  var done = 0 ;
+
+  eb.send( 'test.persistor', {
+    action: 'execute',
+    stmt: "CREATE FUNCTION sleep(seconds INTEGER) RETURNS INTEGER LANGUAGE JAVA DETERMINISTIC NO SQL EXTERNAL NAME 'CLASSPATH:com.bloidonia.vertx.mods.tests.JavaScriptPersistorTest.sleep'"
+  }, function( reply ) {
+    tu.azzert( reply.status === 'ok', reply.message ) ;
+    for( var i = 0 ; i < todo ; i++ ) {
+      eb.send( 'test.persistor', {
+        action: 'select',
+        stmt:   'CALL sleep( 1 )'
+      }, function( reply ) {
+        tu.azzert( reply.status === 'ok' ) ;
+        done++ ;
+        java.lang.System.out.println( "Done " + done ) ;
+        if( done == todo ) {
+          tu.testComplete() ;
+        }
+      } ) ;
+    }
+  } )
+}
+
 function testSimpleSelect() {
   eb.send( 'test.persistor', {
     action: 'select',
