@@ -126,6 +126,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
 
   public void handle( final Message<JsonObject> message ) {
     String action = message.body.getString( "action" ) ;
+    logger.info( "** HANDLE ** " + this.toString() + " (main handler) RECEIVED CALL " + action ) ;
     if( action == null ) {
       sendError( message, "action must be specified" ) ;
     }
@@ -359,6 +360,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     public void handle( Message<JsonObject> message ) {
       vertx.cancelTimer( timerId ) ;
       String action = message.body.getString( "action" ) ;
+      logger.info( "** HANDLE ** " + this.toString() + " (TRANSACTION handler) RECEIVED CALL " + action ) ;
       if( action == null ) {
         sendError( message, "action must be specified" ) ;
       }
@@ -490,6 +492,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     }
 
     public void handle( final Message<JsonObject> message ) {
+      logger.info( "** HANDLE ** " + this.toString() + " (BATCH handler) RECEIVED CALL" ) ;
       if( timerId != -1 ) {
         vertx.cancelTimer( timerId ) ;
       }
