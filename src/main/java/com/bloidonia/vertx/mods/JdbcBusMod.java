@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap ;
 import java.util.Iterator ;
 import java.util.List ;
 import java.util.Map ;
+import java.util.UUID ;
 
 import org.apache.commons.dbutils.QueryRunner ;
 import org.apache.commons.dbutils.ResultSetHandler ;
@@ -43,7 +44,8 @@ import org.vertx.java.core.json.JsonObject ;
 
 public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject>> {
   private String address ;
-  
+  private String uid ;
+
   private String driver ;
   private String url ;
   private String username ;
@@ -58,6 +60,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     super.start() ;
 
     address   = getOptionalStringConfig( "address", "vertx.jdbcpersistor" ) ;
+    uid       = String.format( "%s-%s", address, UUID.randomUUID().toString() ) ;
 
     driver    = getOptionalStringConfig( "driver",   "org.hsqldb.jdbcDriver" ) ;
     url       = getOptionalStringConfig( "url",      "jdbc:hsqldb:mem:test"  ) ;
@@ -79,11 +82,18 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
         pool.setMaxPoolSize( maxpool ) ;
         pool.setAcquireIncrement( acquire ) ;
         if( poolMap.putIfAbsent( address, pool ) != null ) {
-          logger.info( "Closing pool...not required" ) ;
           pool.close() ;
         }
       }
-      eb.registerHandler( address, this ) ;
+      eb.registerHandler( uid, this ) ;
+      logger.info( String.format( "Registered handler %s, now registering with work-queue %s", uid, address ) ) ;
+      eb.send( address + ".register", new JsonObject() {{
+        putString( "processor", uid ) ;
+      }}, new Handler<Message<JsonObject>>() {
+        public void handle( Message<JsonObject> message ) {
+          logger.info( "Work queue replies: " + message.body ) ;
+        }
+      } ) ;
     }
     catch( Exception ex ) {
       logger.fatal( "Error when starting JdbcBusMod", ex ) ;
@@ -91,7 +101,15 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
   }
 
   public void stop() {
-    eb.unregisterHandler( address, this ) ;
+    logger.info( String.format( "Un-registering %s, from work-queue %s", uid, address ) ) ;
+    eb.send( address + ".unregister", new JsonObject() {{
+      putString( "processor", uid ) ;
+    }}, new Handler<Message<JsonObject>>() {
+      public void handle( Message<JsonObject> message ) {
+        logger.info( "Unregistered from work queue: " + message.body ) ;
+      }
+    } ) ;
+    eb.unregisterHandler( uid, this ) ;
     if( poolMap.get( address ) != null ) {
       try {
         logger.info( String.format( "Closing pool. (nConn: %d, nIdle: %d, nBusy: %d, nUnclosed: %d)",
@@ -480,6 +498,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
         reply = process() ;
         if( resultSet != null || valueIterator.hasNext() ) {
           reply.putString( "status", "more-exist" ) ;
+          logger.info( "BATCH REPLY : " + reply ) ;
           message.reply( reply, this ) ;
           if( transaction == null ) {
             timerId = vertx.setTimer( timeout, new BatchTimeoutHandler( connection, statement, resultSet ) ) ;
@@ -490,11 +509,13 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
         }
         else if( transaction == null ) {
           SilentCloser.close( connection, statement ) ;
+          logger.info( "BATCH REPLY : " + reply ) ;
           sendOK( message, reply ) ;
         }
         else {
           SilentCloser.close( statement ) ;
           reply.putString( "status", "ok" ) ;
+          logger.info( "BATCH REPLY : " + reply ) ;
           message.reply( reply, transaction ) ;
         }
       }
