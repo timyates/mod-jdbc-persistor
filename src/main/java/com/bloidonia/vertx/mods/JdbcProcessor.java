@@ -116,16 +116,21 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     } ) ;
     eb.unregisterHandler( uid, this ) ;
     if( poolMap.get( address ) != null ) {
+      ComboPooledDataSource pool = poolMap.get( address ) ;
       try {
-        logger.info( String.format( "Closing pool. (nConn: %d, nIdle: %d, nBusy: %d, nUnclosed: %d)",
-                                     poolMap.get( address ).getNumConnections(),
-                                     poolMap.get( address ).getNumIdleConnections(), 
-                                     poolMap.get( address ).getNumBusyConnections(),
-                                     poolMap.get( address ).getNumUnclosedOrphanedConnections() ) ) ;
+        if( pool != null ) {
+          logger.info( String.format( "Closing pool. (nConn: %d, nIdle: %d, nBusy: %d, nUnclosed: %d)",
+                                       pool.getNumConnections(),
+                                       pool.getNumIdleConnections(),
+                                       pool.getNumBusyConnections(),
+                                       pool.getNumUnclosedOrphanedConnections() ) ) ;
+        }
       }
       catch( SQLException dontcare ) {}
-      poolMap.get( address ).close() ;
-      poolMap.remove( address ) ;
+      pool = poolMap.remove( address ) ;
+      if( pool != null ) {
+        pool.close() ;
+      }
     }
   }
 
