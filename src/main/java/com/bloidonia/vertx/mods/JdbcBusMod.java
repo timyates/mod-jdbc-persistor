@@ -16,8 +16,6 @@
 
 package com.bloidonia.vertx.mods ;
 
-import java.util.UUID ;
-
 import org.vertx.java.busmods.BusModBase ;
 import org.vertx.java.core.Handler ;
 import org.vertx.java.core.eventbus.Message ;
