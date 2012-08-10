@@ -9,14 +9,22 @@ See the [current tests](https://github.com/timyates/mod-jdbc-persistor/blob/mast
 Default config:
 
     {
-      address:   "vertx.jdbcpersistor",
-      driver:    "org.hsqldb.jdbcDriver",
-      url:       "jdbc:hsqldb:mem:test",
-      username:  "",
-      password:  "",
-      minpool:   5,
-      maxpool:   20,
-      acquire:   5,
+      address  : "vertx.jdbcpersistor",
+
+      // JDBC connection settings
+      driver   : "org.hsqldb.jdbcDriver",
+      url      : "jdbc:hsqldb:mem:test",
+      username : "",
+      password : "",
+
+      // Pool settings
+      minpool  : 5,
+      maxpool  : 20,
+      acquire  : 5,
+
+      // Defaults
+      batchtimeout       : 5000,
+      transactiontimeout : 10000
     }
 
 Currently attempts to support:

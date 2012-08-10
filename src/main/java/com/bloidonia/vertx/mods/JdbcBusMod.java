@@ -53,23 +53,28 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
   private int    minpool ;
   private int    maxpool ;
   private int    acquire ;
+  private int    batchTimeout ;
+  private int    transTimeout ;
 
   private static ConcurrentHashMap<String,ComboPooledDataSource> poolMap = new ConcurrentHashMap<String,ComboPooledDataSource>( 8, 0.9f, 1 ) ;
 
   public void start() {
     super.start() ;
 
-    address   = getOptionalStringConfig( "address", "vertx.jdbcpersistor" ) ;
-    uid       = String.format( "%s-%s", address, UUID.randomUUID().toString() ) ;
+    address      = getOptionalStringConfig( "address", "vertx.jdbcpersistor" ) ;
+    uid          = String.format( "%s-%s", address, UUID.randomUUID().toString() ) ;
 
-    driver    = getOptionalStringConfig( "driver",   "org.hsqldb.jdbcDriver" ) ;
-    url       = getOptionalStringConfig( "url",      "jdbc:hsqldb:mem:test"  ) ;
-    username  = getOptionalStringConfig( "username", ""                      ) ;
-    password  = getOptionalStringConfig( "password", ""                      ) ;
+    driver       = getOptionalStringConfig( "driver",   "org.hsqldb.jdbcDriver" ) ;
+    url          = getOptionalStringConfig( "url",      "jdbc:hsqldb:mem:test"  ) ;
+    username     = getOptionalStringConfig( "username", ""                      ) ;
+    password     = getOptionalStringConfig( "password", ""                      ) ;
 
-    minpool   = getOptionalIntConfig( "minpool",    5  ) ;
-    maxpool   = getOptionalIntConfig( "maxpool",    20 ) ;
-    acquire   = getOptionalIntConfig( "acquire",    5 ) ;
+    minpool      = getOptionalIntConfig( "minpool",    5  ) ;
+    maxpool      = getOptionalIntConfig( "maxpool",    20 ) ;
+    acquire      = getOptionalIntConfig( "acquire",    5 ) ;
+
+    batchTimeout = getOptionalIntConfig( "batchtimeout",       5000  ) ;
+    transTimeout = getOptionalIntConfig( "transactiontimeout", 10000 ) ;
 
     try {
       if( poolMap.get( address ) == null ) {
@@ -322,7 +327,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
     JsonObject reply = new JsonObject() ;
     reply.putString( "status", "ok" ) ;
 
-    int timeout = message.body.getNumber( "timeout", 10000 ).intValue() ;
+    int timeout = message.body.getNumber( "timeout", transTimeout ).intValue() ;
     final long timerId = vertx.setTimer( timeout, new TransactionTimeoutHandler( connection ) ) ;
 
     message.reply( reply, new TransactionalHandler( connection, timerId, timeout ) ) ;
@@ -463,7 +468,7 @@ public class JdbcBusMod extends BusModBase implements Handler<Message<JsonObject
       this.timerId = -1 ;
       this.batchSize = initial.body.getNumber( "batchsize", -1 ).intValue() ;
       if( this.batchSize <= 0 ) this.batchSize = -1 ;
-      this.timeout = initial.body.getNumber( "batchtimeout", 10000 ).intValue() ;
+      this.timeout = initial.body.getNumber( "batchtimeout", batchTimeout ).intValue() ;
 
       // create a List<List<Object>> from the values
       this.values = JsonUtils.arrayNormaliser( initial.body.getArray( "values" ) ) ;
