@@ -18,8 +18,6 @@ package com.bloidonia.vertx.mods ;
 
 import org.vertx.java.busmods.BusModBase ;
 import org.vertx.java.core.Handler ;
-import org.vertx.java.core.eventbus.Message ;
-import org.vertx.java.core.json.JsonObject ;
 
 public class JdbcBusMod extends BusModBase {
   private String address ;
