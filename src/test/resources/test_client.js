@@ -239,7 +239,7 @@ function testCommit() {
 tu.registerTests(this);
 var persistorConfig = { address: 'test.persistor' }
 vertx.deployModule('vertx.jdbc-persistor-v' + java.lang.System.getProperty('vertx.version'), persistorConfig, 1, function() {
-  java.lang.Thread.sleep( 1000 ) ;
+  java.lang.Thread.sleep( 2000 ) ;
   tu.appReady();
 });
 
