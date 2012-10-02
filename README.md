@@ -145,7 +145,7 @@ You may also pass the optional parameters `batchsize` and `batchtimeout` if you 
     {
       action: "insert",
       stmt: "INSERT INTO xxx( a, b ) VALUES( ?, ? )",
-      params: [ [ 10, 20 ], ... ]
+      values: [ [ 10, 20 ], ... ]
     }
 
 ### Outputs
@@ -172,7 +172,7 @@ or
     {
       action: "update"
       stmt: "UPDATE xxx SET( a=?, b=? ) WHERE c=?",
-      params: [ [ 10, 20, 30 ], ... ]
+      values: [ [ 10, 20, 30 ], ... ]
     }
 
 ### OUTPUTS
