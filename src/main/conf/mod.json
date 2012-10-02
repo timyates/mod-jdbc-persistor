@@ -1,4 +1,3 @@
 {
-  "main": "com.bloidonia.vertx.mods.JdbcBusMod",
-  "worker": true
+  "main": "com.bloidonia.vertx.mods.JdbcBusMod"
 }

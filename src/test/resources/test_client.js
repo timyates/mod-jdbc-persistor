@@ -30,6 +30,36 @@ function testInvalidAction() {
   } )
 }
 
+function testConcurrency() {
+  var todo = 10 ;
+  var done = 0 ;
+
+  eb.send( 'test.persistor', {
+    action: 'execute',
+    stmt: "CREATE FUNCTION sleep(seconds INTEGER, num INTEGER) RETURNS INTEGER " +
+          "LANGUAGE JAVA DETERMINISTIC NO SQL EXTERNAL NAME " +
+          "'CLASSPATH:com.bloidonia.vertx.mods.tests.JavaScriptPersistorTest.sleep'"
+  }, function( reply ) {
+    tu.azzert( reply.status === 'ok', reply.message ) ;
+    var start = new Date() ;
+    for( var i = 0 ; i < todo ; i++ ) {
+      eb.send( 'test.persistor', {
+        action: 'select',
+        stmt:   'CALL sleep( 1, ' + ( i + 1 ) + ' )'
+      }, function( reply ) {
+        tu.azzert( reply.status === 'ok' ) ;
+        done++ ;
+        java.lang.System.out.println( "Done " + done + " (task " + reply.result[0][ '@p0' ] + " returned ok)" ) ;
+        if( done == todo ) {
+          var diff = new Date().getTime() - start.getTime() ;
+          tu.azzert( diff < 5000, 'Expected time delay to be less than 5s, but it was ' + ( diff / 1000 ) + 's' ) ;
+          tu.testComplete() ;
+        }
+      } ) ;
+    }
+  } )
+}
+
 function testSimpleSelect() {
   eb.send( 'test.persistor', {
     action: 'select',
@@ -197,6 +227,9 @@ function testCommit() {
           }, function( reply ) {
             tu.azzert( reply.status === 'ok' ) ;
             tu.azzert( reply.result.length == 3 ) ;
+            tu.azzert( reply.result[ 0 ].NAME == 'dave', 'Expected Dave first' ) ;
+            tu.azzert( reply.result[ 1 ].NAME == 'mike', 'Mike should be second' ) ;
+            tu.azzert( reply.result[ 2 ].NAME == 'tim', 'And Tim last' ) ;
             tu.testComplete() ;
           } ) ;
         } ) ;
@@ -204,10 +237,12 @@ function testCommit() {
     } ) ;
   } ) ;
 }
-
+//
 tu.registerTests(this);
 var persistorConfig = { address: 'test.persistor' }
 vertx.deployModule('vertx.jdbc-persistor-v' + java.lang.System.getProperty('vertx.version'), persistorConfig, 1, function() {
+  // Wait for the work-queue to power up...
+  java.lang.Thread.sleep( 2000 ) ;
   tu.appReady();
 });
 
