@@ -149,9 +149,9 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
         if( pool != null ) {
           try {
             sendOK( message, new JsonObject() {{
-              putNumber( "nConnections", pool.getNumConnections() ) ;
-              putNumber( "nIdle", pool.getNumIdleConnections() ) ;
-              putNumber( "nBusy", pool.getNumBusyConnections() ) ;
+              putNumber( "connections", pool.getNumConnections() ) ;
+              putNumber( "idle", pool.getNumIdleConnections() ) ;
+              putNumber( "busy", pool.getNumBusyConnections() ) ;
               putNumber( "orphans", pool.getNumUnclosedOrphanedConnections() ) ;
             }} ) ;
           }

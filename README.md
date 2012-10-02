@@ -265,3 +265,30 @@ or
       status: "error",
       message: <message>
     }
+
+## POOL STATUS
+
+Get the current status of the pool
+
+### Inputs
+
+    {
+      action: "pool-status"
+    }
+
+### OUTPUTS
+
+    {
+      status: "ok",
+      connections: 10,
+      idle: 10,
+      busy: 0,
+      orphans: 0
+    }
+
+or
+
+    {
+      status: "error",
+      message: <message>
+    }
