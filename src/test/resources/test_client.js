@@ -240,7 +240,7 @@ function testCommit() {
 //
 tu.registerTests(this);
 var persistorConfig = { address: 'test.persistor' }
-vertx.deployModule('bloidonia.jdbc-persistor-v' + java.lang.System.getProperty('vertx.version'), persistorConfig, 1, function() {
+vertx.deployModule('com.bloidonia.jdbc-persistor-v' + java.lang.System.getProperty('vertx.version'), persistorConfig, 1, function() {
   // Wait for the work-queue to power up...
   java.lang.Thread.sleep( 2000 ) ;
   tu.appReady();

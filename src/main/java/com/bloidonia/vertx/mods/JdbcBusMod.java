@@ -25,7 +25,7 @@ public class JdbcBusMod extends BusModBase {
 
   public void start() {
     super.start() ;
-    address = getOptionalStringConfig( "address", "bloidonia.jdbcpersistor" ) ;
+    address = getOptionalStringConfig( "address", "com.bloidonia.jdbcpersistor" ) ;
     maxpool = getOptionalIntConfig( "maxpool",    20 ) ;
     container.deployModule( "vertx.work-queue-v1.1", config, 1, new Handler<String>() {
       public void handle( String response ) {
