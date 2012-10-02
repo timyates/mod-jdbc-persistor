@@ -19,6 +19,8 @@ package com.bloidonia.vertx.mods ;
 import com.mchange.v2.c3p0.* ;
 
 import java.sql.Connection ;
+import java.sql.Driver ;
+import java.sql.DriverManager ;
 import java.sql.PreparedStatement ;
 import java.sql.ResultSet ;
 import java.sql.SQLException ;
@@ -77,17 +79,20 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     transTimeout = getOptionalIntConfig( "transactiontimeout", 10000 ) ;
 
     try {
-      if( poolMap.get( address ) == null ) {
-        ComboPooledDataSource pool = new ComboPooledDataSource() ;
-        pool.setDriverClass( driver ) ;
-        pool.setJdbcUrl( url ) ;
-        pool.setUser( username ) ;
-        pool.setPassword( password ) ;
-        pool.setMinPoolSize( minpool ) ;
-        pool.setMaxPoolSize( maxpool ) ;
-        pool.setAcquireIncrement( acquire ) ;
-        if( poolMap.putIfAbsent( address, pool ) != null ) {
-          pool.close() ;
+      synchronized( poolMap ) {
+        if( poolMap.get( address ) == null ) {
+          DriverManager.registerDriver( (Driver)Class.forName( driver ).newInstance() ) ;
+          ComboPooledDataSource pool = new ComboPooledDataSource() ;
+          pool.setDriverClass( driver ) ;
+          pool.setJdbcUrl( url ) ;
+          pool.setUser( username ) ;
+          pool.setPassword( password ) ;
+          pool.setMinPoolSize( minpool ) ;
+          pool.setMaxPoolSize( maxpool ) ;
+          pool.setAcquireIncrement( acquire ) ;
+          if( poolMap.putIfAbsent( address, pool ) != null ) {
+            pool.close() ;
+          }
         }
       }
       eb.registerHandler( uid, this ) ;
@@ -105,11 +110,18 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
       putString( "processor", uid ) ;
     }} ) ;
     eb.unregisterHandler( uid, this ) ;
-    ComboPooledDataSource pool = poolMap.get( address ) ;
-    if( pool != null ) {
-      pool = poolMap.remove( address ) ;
+    synchronized( poolMap ) {
+      ComboPooledDataSource pool = poolMap.get( address ) ;
       if( pool != null ) {
-        pool.close() ;
+        pool = poolMap.remove( address ) ;
+        if( pool != null ) {
+          pool.close() ;
+          try {
+            DriverManager.deregisterDriver( DriverManager.getDriver( url ) ) ;
+          } catch( SQLException ex ) {
+            logger.info( String.format( "Could not deregister driver: %s", ex.getMessage() ) ) ;
+          }
+        }
       }
     }
   }

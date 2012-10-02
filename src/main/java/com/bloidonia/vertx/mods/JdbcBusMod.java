@@ -19,19 +19,14 @@ package com.bloidonia.vertx.mods ;
 import org.vertx.java.busmods.BusModBase ;
 import org.vertx.java.core.Handler ;
 
-import java.sql.DriverManager ;
-import java.sql.SQLException ;
-
 public class JdbcBusMod extends BusModBase {
   private String address ;
   private int maxpool ;
-  private String url ;
 
   public void start() {
     super.start() ;
     address = getOptionalStringConfig( "address", "com.bloidonia.jdbcpersistor" ) ;
     maxpool = getOptionalIntConfig( "maxpool",    20 ) ;
-    url     = getOptionalStringConfig( "url",     "jdbc:hsqldb:mem:test" ) ;
 
     container.deployModule( "vertx.work-queue-v1.1", config, 1, new Handler<String>() {
       public void handle( String response ) {
@@ -41,10 +36,5 @@ public class JdbcBusMod extends BusModBase {
   }
 
   public void stop() {
-    try {
-      DriverManager.deregisterDriver( DriverManager.getDriver( url ) ) ;
-    } catch( SQLException ex ) {
-      logger.info( String.format( "Could not deregister driver: %s", ex.getMessage() ) ) ;
-    }
   }
 }
