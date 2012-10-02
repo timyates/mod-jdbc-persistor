@@ -7,7 +7,7 @@ See the [current tests](https://github.com/timyates/mod-jdbc-persistor/blob/mast
 Default config:
 
     {
-      address  : "vertx.jdbcpersistor",
+      address  : "bloidonia.jdbcpersistor",
 
       // JDBC connection settings
       driver   : "org.hsqldb.jdbcDriver",

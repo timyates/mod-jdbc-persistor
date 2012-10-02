@@ -61,7 +61,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
   public void start() {
     super.start() ;
 
-    address      = getOptionalStringConfig( "address", "vertx.jdbcpersistor" ) ;
+    address      = getOptionalStringConfig( "address", "bloidonia.jdbcpersistor" ) ;
     uid          = String.format( "%s-%s", address, UUID.randomUUID().toString() ) ;
 
     driver       = getOptionalStringConfig( "driver",   "org.hsqldb.jdbcDriver" ) ;
