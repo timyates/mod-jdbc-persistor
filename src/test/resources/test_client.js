@@ -178,7 +178,6 @@ function testRollback() {
         stmt:  'INSERT INTO trans( name, age ) VALUES ( ?, ? )',
         values: [ [ 'tim', 65 ], [ 'dave', 29 ], [ 'mike', 42 ] ]
       }, function( reply, replier ) {
-        java.lang.System.out.println( "GOT " + replier + " with " + reply ) ;
         tu.azzert( reply.status === 'ok' ) ;
         tu.azzert( reply.result.length == 3 ) ;
         replier( {
@@ -228,6 +227,9 @@ function testCommit() {
           }, function( reply ) {
             tu.azzert( reply.status === 'ok' ) ;
             tu.azzert( reply.result.length == 3 ) ;
+            tu.azzert( reply.result[ 0 ].NAME == 'dave', 'Expected Dave first' ) ;
+            tu.azzert( reply.result[ 1 ].NAME == 'mike', 'Mike should be second' ) ;
+            tu.azzert( reply.result[ 2 ].NAME == 'tim', 'And Tim last' ) ;
             tu.testComplete() ;
           } ) ;
         } ) ;
@@ -235,10 +237,11 @@ function testCommit() {
     } ) ;
   } ) ;
 }
-
+//
 tu.registerTests(this);
 var persistorConfig = { address: 'test.persistor' }
 vertx.deployModule('vertx.jdbc-persistor-v' + java.lang.System.getProperty('vertx.version'), persistorConfig, 1, function() {
+  // Wait for the work-queue to power up...
   java.lang.Thread.sleep( 2000 ) ;
   tu.appReady();
 });

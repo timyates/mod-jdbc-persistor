@@ -91,14 +91,9 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
         }
       }
       eb.registerHandler( uid, this ) ;
-      logger.info( String.format( "Registered handler %s, now registering with work-queue %s", uid, address ) ) ;
       eb.send( address + ".register", new JsonObject() {{
         putString( "processor", uid ) ;
-      }}, new Handler<Message<JsonObject>>() {
-        public void handle( Message<JsonObject> message ) {
-          logger.info( "Work queue replies: " + message.body ) ;
-        }
-      } ) ;
+      }} ) ;
     }
     catch( Exception ex ) {
       logger.fatal( "Error when starting JdbcBusMod", ex ) ;
@@ -106,23 +101,18 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
   }
 
   public void stop() {
-    logger.info( String.format( "Un-registering %s, from work-queue %s", uid, address ) ) ;
     eb.send( address + ".unregister", new JsonObject() {{
       putString( "processor", uid ) ;
-    }}, new Handler<Message<JsonObject>>() {
-      public void handle( Message<JsonObject> message ) {
-        logger.info( "Unregistered from work queue: " + message.body ) ;
-      }
-    } ) ;
+    }} ) ;
     eb.unregisterHandler( uid, this ) ;
     ComboPooledDataSource pool = poolMap.get( address ) ;
     if( pool != null ) {
       try {
-        logger.info( String.format( "Closing pool. (nConn: %d, nIdle: %d, nBusy: %d, nUnclosed: %d)",
-                                     pool.getNumConnections(),
-                                     pool.getNumIdleConnections(),
-                                     pool.getNumBusyConnections(),
-                                     pool.getNumUnclosedOrphanedConnections() ) ) ;
+        logger.debug( String.format( "Closing pool. (nConn: %d, nIdle: %d, nBusy: %d, nUnclosed: %d)",
+                                     pool == null ? "-1" : pool.getNumConnections(),
+                                     pool == null ? "-1" : pool.getNumIdleConnections(),
+                                     pool == null ? "-1" : pool.getNumBusyConnections(),
+                                     pool == null ? "-1" : pool.getNumUnclosedOrphanedConnections() ) ) ;
       }
       catch( SQLException dontcare ) {}
       pool = poolMap.remove( address ) ;
@@ -134,7 +124,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
 
   public void handle( final Message<JsonObject> message ) {
     String action = message.body.getString( "action" ) ;
-    logger.info( "** HANDLE ** " + this.toString() + " (main handler) RECEIVED CALL " + action ) ;
+    logger.debug( "** HANDLE ** " + this.toString() + " (main handler) RECEIVED CALL " + action ) ;
     if( action == null ) {
       sendError( message, "action must be specified" ) ;
     }
@@ -153,6 +143,25 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
         break ;
       case "transaction" :
         doTransaction( message ) ;
+        break ;
+      case "pool-status" :
+        final ComboPooledDataSource pool = poolMap.get( address ) ;
+        if( pool != null ) {
+          try {
+            sendOK( message, new JsonObject() {{
+              putNumber( "nConnections", pool.getNumConnections() ) ;
+              putNumber( "nIdle", pool.getNumIdleConnections() ) ;
+              putNumber( "nBusy", pool.getNumBusyConnections() ) ;
+              putNumber( "orphans", pool.getNumUnclosedOrphanedConnections() ) ;
+            }} ) ;
+          }
+          catch( SQLException ex ) {
+            sendError( message, "Cannot get pool info", ex ) ;
+          }
+        }
+        else {
+          sendError( message, "No pool found!" ) ;
+        }
         break ;
       default:
         sendError( message, "Invalid action : " + action ) ;
@@ -368,7 +377,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     public void handle( Message<JsonObject> message ) {
       vertx.cancelTimer( timerId ) ;
       String action = message.body.getString( "action" ) ;
-      logger.info( "** HANDLE ** " + this.toString() + " (TRANSACTION handler) RECEIVED CALL " + action ) ;
+      logger.debug( "** HANDLE ** " + this.toString() + " (TRANSACTION handler) RECEIVED CALL " + action ) ;
       if( action == null ) {
         sendError( message, "action must be specified" ) ;
       }
@@ -500,7 +509,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     }
 
     public void handle( final Message<JsonObject> message ) {
-      logger.info( "** HANDLE ** " + this.toString() + " (BATCH handler) RECEIVED CALL" ) ;
+      logger.debug( "** HANDLE ** " + this.toString() + " (BATCH handler) RECEIVED CALL" ) ;
       if( timerId != -1 ) {
         vertx.cancelTimer( timerId ) ;
       }
@@ -509,7 +518,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
         reply = process() ;
         if( resultSet != null || valueIterator.hasNext() ) {
           reply.putString( "status", "more-exist" ) ;
-          logger.info( "BATCH REPLY : " + reply ) ;
+          logger.debug( "BATCH REPLY : " + reply ) ;
           message.reply( reply, this ) ;
           if( transaction == null ) {
             timerId = vertx.setTimer( timeout, new BatchTimeoutHandler( connection, statement, resultSet ) ) ;
@@ -520,13 +529,13 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
         }
         else if( transaction == null ) {
           SilentCloser.close( connection, statement ) ;
-          logger.info( "BATCH REPLY : " + reply ) ;
+          logger.debug( "BATCH REPLY : " + reply ) ;
           sendOK( message, reply ) ;
         }
         else {
           SilentCloser.close( statement ) ;
           reply.putString( "status", "ok" ) ;
-          logger.info( "BATCH REPLY : " + reply ) ;
+          logger.debug( "BATCH REPLY : " + reply ) ;
           message.reply( reply, transaction ) ;
         }
       }
