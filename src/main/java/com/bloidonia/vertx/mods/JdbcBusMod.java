@@ -30,7 +30,10 @@ public class JdbcBusMod extends BusModBase {
 
     container.deployModule( "vertx.work-queue-v1.2", config, 1, new Handler<String>() {
       public void handle( String response ) {
-        container.deployWorkerVerticle( JdbcProcessor.class.getName(), config, maxpool ) ;
+        container.deployWorkerVerticle( JdbcProcessor.class.getName(), config, maxpool, new Handler<String>() {
+          public void handle( String response ) {
+          }
+        } ) ;
       }
     } ) ;
   }
