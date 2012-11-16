@@ -69,12 +69,25 @@ task prepareVertxModule( type:Copy, dependsOn: 'classes' ) {
 }
 
 // Package into build/libs/mod.zip
-task dist( type: Zip, dependsOn: 'prepareVertxModule' ) {
+task distZip( type: Zip, dependsOn: 'prepareVertxModule' ) {
   group = 'vert.x'
   description = "Assembles a vert.x module in 'mod.zip' format"
   destinationDir = project.file('build/libs')
   archiveName = 'mod.zip'
   from( project.file( "build/mod/${modulename}-v${version}" ) ).into( "${modulename}-v${version}" )
+}
+
+// Package into build/libs/mod.zip
+task dist( dependsOn: 'distZip' ) << {
+  def entries = new java.util.zip.ZipFile( project.file( 'build/libs/mod.zip' ) ).entries().collect { it.name }
+  def oneRoot = entries.every { it.startsWith "${modulename}-v${version}/" }
+  def modjson = entries.find { it == "${modulename}-v${version}/mod.json" }
+  if( !oneRoot ) {
+    throw new GradleException( "Invalid mod.zip.  Multiple root folders located!" )
+  }
+  else if( !modjson ) {
+    throw new GradleException( "Invalid mod.zip.  Cannot locate ${modulename}-v${version}/mod.json" )
+  }
 }
 
 task prepareVertxTest(type: Sync, dependsOn: ['prepareVertxModule']) {
