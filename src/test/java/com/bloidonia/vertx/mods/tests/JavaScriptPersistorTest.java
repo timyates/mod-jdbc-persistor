@@ -68,6 +68,11 @@ public class JavaScriptPersistorTest extends TestBase {
   }
 
   @Test
+  public void testCreateAndInsertViaStmt() throws Exception {
+    startTest(getMethodName());
+  }
+
+  @Test
   public void testRollback() throws Exception {
     startTest(getMethodName());
   }
