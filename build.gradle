@@ -74,7 +74,7 @@ task dist( type: Zip, dependsOn: 'prepareVertxModule' ) {
   description = "Assembles a vert.x module in 'mod.zip' format"
   destinationDir = project.file('build/libs')
   archiveName = 'mod.zip'
-  from project.file("build/mod")
+  from( project.file( "build/mod/${modulename}-v${version}" ) ).into( "${modulename}-v${version}" )
 }
 
 task prepareVertxTest(type: Sync, dependsOn: ['prepareVertxModule']) {
