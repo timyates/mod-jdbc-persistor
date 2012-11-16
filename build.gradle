@@ -77,7 +77,7 @@ task distZip( type: Zip, dependsOn: 'prepareVertxModule' ) {
   from( project.file( "build/mod/${modulename}-v${version}" ) ).into( "${modulename}-v${version}" )
 }
 
-// Package into build/libs/mod.zip
+// Check build/libs/mod.zip has a single root, and a mod.json entry
 task dist( dependsOn: 'distZip' ) << {
   def entries = new java.util.zip.ZipFile( project.file( 'build/libs/mod.zip' ) ).entries().collect { it.name }
   def oneRoot = entries.every { it.startsWith "${modulename}-v${version}/" }
