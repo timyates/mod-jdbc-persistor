@@ -283,7 +283,6 @@ function testCommit() {
 tu.registerTests( this ) ;
 
 var persistorConfig = { address: 'test.persistor' }
-
 var readyAddress = persistorConfig.address + '.ready'
 
 var readyHandler = function( msg ) {
