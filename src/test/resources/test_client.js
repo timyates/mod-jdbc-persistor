@@ -60,6 +60,7 @@ function testConcurrency() {
   } )
 }
 
+
 function testSimpleSelect() {
   eb.send( 'test.persistor', {
     action: 'select',
@@ -279,15 +280,24 @@ function testCommit() {
   } ) ;
 }
 //
-tu.registerTests(this);
+tu.registerTests( this ) ;
+
 var persistorConfig = { address: 'test.persistor' }
-vertx.deployModule('com.bloidonia.jdbc-persistor-v' + java.lang.System.getProperty('vertx.version'), persistorConfig, 1, function() {
-  // Wait for the work-queue to power up...
-  java.lang.Thread.sleep( 2000 ) ;
-  tu.appReady();
-});
+
+var readyAddress = persistorConfig.address + '.ready'
+
+var readyHandler = function( msg ) {
+  if( msg.status === 'ok' ) {
+    tu.appReady();
+    eb.unregisterHandler( readyAddress, readyHandler ) ;
+  }
+} ;
+
+// This will get called by the jdbc-persistor when it has installed the work-queue
+eb.registerHandler( readyAddress, readyHandler ) ;
+
+vertx.deployModule('com.bloidonia.jdbc-persistor-v' + java.lang.System.getProperty('vertx.version'), persistorConfig, 1, function() {} ) ;
 
 function vertxStop() {
-  tu.unregisterAll();
   tu.appStopped();
 }
