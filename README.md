@@ -1,6 +1,6 @@
 Slowly gaining trust...  Could do with more eyes looking at it to check its asynchronous credentials, and spot weak points or cracks...
 
-> For Vert-x 1.3.0, please use v1.1 of this mod
+> For Vert-x 1.3.1, please use v1.2 of this mod
 
 More work probably required...
 
@@ -16,6 +16,10 @@ Default config:
       url      : "jdbc:hsqldb:mem:test",
       username : "",
       password : "",
+
+      // Values 'yes', 'no', or 'maybe'. Defaults to 'no'. See https://issues.apache.org/jira/browse/DBUTILS-101
+      // 'maybe' means that instance of the JdbcProcessor will switch to 'yes' if an SQLException is caught
+      pmdKnownBroken : "no",
 
       // Pool settings
       minpool  : 5,

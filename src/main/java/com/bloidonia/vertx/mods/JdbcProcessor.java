@@ -52,6 +52,8 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
   private String url ;
   private String username ;
   private String password ;
+  private String pmdKnownBroken ;
+  private StatementFiller statementFiller ;
   private int    minpool ;
   private int    maxpool ;
   private int    acquire ;
@@ -67,13 +69,25 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     uid          = String.format( "%s-%s", address, UUID.randomUUID().toString() ) ;
 
     driver       = getOptionalStringConfig( "driver",   "org.hsqldb.jdbcDriver" ) ;
-    url          = getOptionalStringConfig( "url",      "jdbc:hsqldb:mem:test"  ) ;
+    url          = getOptionalStringConfig( "url",      "jdbc:hsqldb:mem:test?shutdown=true"  ) ;
     username     = getOptionalStringConfig( "username", ""                      ) ;
     password     = getOptionalStringConfig( "password", ""                      ) ;
 
     minpool      = getOptionalIntConfig( "minpool",    5  ) ;
     maxpool      = getOptionalIntConfig( "maxpool",    20 ) ;
     acquire      = getOptionalIntConfig( "acquire",    5 ) ;
+
+    pmdKnownBroken = getOptionalStringConfig( "pmdKnownBroken", "no" ) ;
+    switch( pmdKnownBroken ) {
+      case "yes" :
+        statementFiller = new BrokenPMDStatementFiller() ;
+        break ;
+      case "maybe" :
+        statementFiller = new MaybeBrokenPMDStatementFiller() ;
+        break ;
+      default :
+        statementFiller = new NonBrokenPMDStatementFiller() ;
+    }
 
     batchTimeout = getOptionalIntConfig( "batchtimeout",       5000  ) ;
     transTimeout = getOptionalIntConfig( "transactiontimeout", 10000 ) ;
@@ -202,7 +216,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
           LimitedMapListHandler handler = new LimitedMapListHandler( batchSize == -1 ? -1 : batchSize - result.size() ) ;
           if( resultSet == null ) {
             List<Object> params = valueIterator.next() ;
-            new QueryRunner().fillStatement( statement, params.toArray( new Object[] {} ) ) ;
+            statementFiller.fill( statement, params ) ;
             resultSet = statement.executeQuery() ;
           }
           store( result, handler ) ;
@@ -295,7 +309,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
             LimitedMapListHandler handler = new LimitedMapListHandler( batchSize == -1 ? -1 : batchSize - result.size() ) ;
             if( resultSet == null ) {
               List<Object> params = valueIterator.next() ;
-              new QueryRunner().fillStatement( statement, params.toArray( new Object[] {} ) ) ;
+              statementFiller.fill( statement, params ) ;
               nRows += statement.executeUpdate() ;
               resultSet = statement.getGeneratedKeys() ;
             }
@@ -306,7 +320,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
         else {
           while( valueIterator.hasNext() ) {
             List<Object> params = valueIterator.next() ;
-            new QueryRunner().fillStatement( statement, params.toArray( new Object[] {} ) ) ;
+            statementFiller.fill( statement, params ) ;
             nRows += statement.executeUpdate() ;
           }
         }
@@ -559,5 +573,34 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
         }
       }
     }
+  }
+
+  private class NonBrokenPMDStatementFiller implements StatementFiller {
+    public void fill( PreparedStatement statement, List<Object> params ) throws SQLException {
+      new QueryRunner( false ).fillStatement( statement, params.toArray( new Object[] {} ) ) ;
+    }
+  }
+
+  private class MaybeBrokenPMDStatementFiller implements StatementFiller {
+    public void fill( PreparedStatement statement, List<Object> params ) throws SQLException {
+      try {
+        new QueryRunner( false ).fillStatement( statement, params.toArray( new Object[] {} ) ) ;
+      }
+      catch( SQLException ex ) {
+        logger.error( String.format( "Caught %s trying to fill statement. Assuming broken ParameterMetaData, and switching this instance to pmdKnownBroken='yes'", ex.getMessage() ), ex ) ;
+        statementFiller = new BrokenPMDStatementFiller() ;
+        new QueryRunner( true ).fillStatement( statement, params.toArray( new Object[] {} ) ) ;
+      }
+    }
+  }
+
+  private class BrokenPMDStatementFiller implements StatementFiller {
+    public void fill( PreparedStatement statement, List<Object> params ) throws SQLException {
+      new QueryRunner( true ).fillStatement( statement, params.toArray( new Object[] {} ) ) ;
+    }
+  }
+
+  private interface StatementFiller {
+    void fill( PreparedStatement statement, List<Object> params ) throws SQLException ;
   }
 }

@@ -18,6 +18,7 @@ package com.bloidonia.vertx.mods ;
 
 import org.vertx.java.busmods.BusModBase ;
 import org.vertx.java.core.Handler ;
+import org.vertx.java.core.json.JsonObject ;
 
 public class JdbcBusMod extends BusModBase {
   private String address ;
@@ -32,6 +33,10 @@ public class JdbcBusMod extends BusModBase {
       public void handle( String response ) {
         container.deployWorkerVerticle( JdbcProcessor.class.getName(), config, maxpool, new Handler<String>() {
           public void handle( String response ) {
+            // All done, send a message to this effect incase anyone cares.
+            eb.send( String.format( "%s.ready", address ), new JsonObject() {{
+              putString( "status", "ok" ) ;
+            }} ) ;
           }
         } ) ;
       }

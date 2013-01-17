@@ -17,7 +17,7 @@ package com.bloidonia.vertx.mods.tests ;
  */
 
 import org.junit.Test;
-import org.vertx.java.framework.TestBase;
+import org.vertx.java.testframework.TestBase;
 
 public class JavaScriptPersistorTest extends TestBase {
 
@@ -69,6 +69,16 @@ public class JavaScriptPersistorTest extends TestBase {
 
   @Test
   public void testCreateAndInsertViaStmt() throws Exception {
+    startTest(getMethodName());
+  }
+
+  @Test
+  public void testHammerInsert() throws Exception {
+    startTest(getMethodName());
+  }
+
+  @Test
+  public void testHammerParallel() throws Exception {
     startTest(getMethodName());
   }
 
