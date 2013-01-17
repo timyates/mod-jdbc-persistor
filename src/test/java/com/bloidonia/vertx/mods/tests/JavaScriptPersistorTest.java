@@ -73,6 +73,16 @@ public class JavaScriptPersistorTest extends TestBase {
   }
 
   @Test
+  public void testHammerInsert() throws Exception {
+    startTest(getMethodName());
+  }
+
+  @Test
+  public void testHammerParallel() throws Exception {
+    startTest(getMethodName());
+  }
+
+  @Test
   public void testRollback() throws Exception {
     startTest(getMethodName());
   }

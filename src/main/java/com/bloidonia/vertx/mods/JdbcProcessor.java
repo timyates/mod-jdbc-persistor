@@ -67,7 +67,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     uid          = String.format( "%s-%s", address, UUID.randomUUID().toString() ) ;
 
     driver       = getOptionalStringConfig( "driver",   "org.hsqldb.jdbcDriver" ) ;
-    url          = getOptionalStringConfig( "url",      "jdbc:hsqldb:mem:test"  ) ;
+    url          = getOptionalStringConfig( "url",      "jdbc:hsqldb:mem:test?shutdown=true"  ) ;
     username     = getOptionalStringConfig( "username", ""                      ) ;
     password     = getOptionalStringConfig( "password", ""                      ) ;
 
