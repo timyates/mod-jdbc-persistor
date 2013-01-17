@@ -31,6 +31,30 @@ Default config:
       transactiontimeout : 10000
     }
 
+When the mod is loaded successfully, it will send a message:
+
+    { status: "ok" }
+
+To the address in the config with `.ready` appended to the end.
+
+This means you can do:
+
+    var persistorConfig = { address: 'test.persistor', url: 'jdbc:hsqldb:mem:' + vertx.generateUUID() + '?shutdown=true' }
+    var readyAddress = persistorConfig.address + '.ready'
+    var readyHandler = function( msg ) {
+      if( msg.status === 'ok' ) {
+        eb.unregisterHandler( readyAddress, readyHandler ) ;
+
+        // MOD IS READY TO GO!!!
+      }
+    } ;
+
+    // This will get called by the jdbc-persistor when it has installed the work-queue
+    eb.registerHandler( readyAddress, readyHandler ) ;
+    vertx.deployModule('com.bloidonia.jdbc-persistor-v1.2', persistorConfig, 1, function() {} ) ;
+
+And when the `readyHandler` is called, you know your work-queue is up and running.
+
 Currently attempts to support:
 
 # Interface Specification
