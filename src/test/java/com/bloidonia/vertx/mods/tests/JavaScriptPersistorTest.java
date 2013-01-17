@@ -17,7 +17,7 @@ package com.bloidonia.vertx.mods.tests ;
  */
 
 import org.junit.Test;
-import org.vertx.java.framework.TestBase;
+import org.vertx.java.testframework.TestBase;
 
 public class JavaScriptPersistorTest extends TestBase {
 
