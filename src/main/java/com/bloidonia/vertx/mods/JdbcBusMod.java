@@ -31,7 +31,7 @@ public class JdbcBusMod extends BusModBase {
 
     container.deployModule( "vertx.work-queue-v1.2", config, 1, new Handler<String>() {
       public void handle( String response ) {
-        container.deployWorkerVerticle( JdbcProcessor.class.getName(), config, maxpool, new Handler<String>() {
+        container.deployWorkerVerticle( JdbcProcessor.class.getName(), config, maxpool, false, new Handler<String>() {
           public void handle( String response ) {
             // All done, send a message to this effect incase anyone cares.
             eb.send( String.format( "%s.ready", address ), new JsonObject() {{

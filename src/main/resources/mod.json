@@ -1,0 +1,4 @@
+{
+  "main": "com.bloidonia.vertx.mods.JdbcBusMod",
+  "deploys":"vertx.work-queue-v1.2"
+}

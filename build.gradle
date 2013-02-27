@@ -1,5 +1,8 @@
+import org.vertx.java.platform.PlatformLocator
+import org.vertx.java.core.Handler
+
 /*
- * Copyright 2012 the original author or authors.
+ * Copyright 2013 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,43 +17,61 @@
  * limitations under the License.
  */
 
+apply from: "gradle/maven.gradle"
+
 apply plugin: 'java'
+apply plugin: 'groovy'
+apply plugin: 'idea'
+apply plugin: 'eclipse'
+
+group = groupname
+archivesBaseName = artifact
 
 defaultTasks = ['assemble']
 
 sourceCompatibility = '1.7'
 targetCompatibility = '1.7'
 
-jar.enabled = false // we don't need this
+// We don't produce a jar
+jar.enabled = false 
+assert configurations.archives.artifacts.removeAll { it.file == jar.archivePath }
 
-compileJava.options.compilerArgs << "-Xlint:unchecked" << "-Werror"
+configurations {
+  provided
+  testCompile.extendsFrom provided
+}
 
 repositories {
+  mavenLocal()
   maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
   mavenCentral()
 }
 
-configurations {
-  provided
-}
-
 dependencies {
+  provided "io.vertx:vertx-core:$vertxVersion"
+  provided "io.vertx:vertx-platform:$vertxVersion"
   compile "c3p0:c3p0:$c3p0Version"
   compile "commons-dbutils:commons-dbutils:$dbutilsVersion"
-  provided     "org.vert-x:vertx-core:$vertxVersion"
-  provided     "org.vert-x:vertx-platform:$vertxVersion"
-
-  testCompile "org.vert-x:vertx-core:$vertxVersion"
-  testCompile "org.vert-x:vertx-platform:$vertxVersion"
-  testCompile "org.vert-x:vertx-lang-java:$vertxVersion"
-  testCompile "org.vert-x:vertx-lang-rhino:$vertxVersion"
-  testCompile "org.mozilla:rhino:$rhinoVersion"
   testCompile "org.hsqldb:hsqldb:$hsqldbVersion"
-
-  testCompile( "org.vert-x:vertx-testframework:$vertxVersion" ) {
-    transitive = false // don't need all of the other language deps
-  }
   testCompile "junit:junit:$junitVersion"
+  testCompile( "io.vertx:testtools:$toolsVersion" ) {
+    transitive = false
+  }
+}
+
+// This sets up the classpath for
+buildscript {
+
+  repositories {
+    mavenLocal()
+    maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+    mavenCentral()
+  }
+
+  dependencies {
+    classpath "io.vertx:vertx-core:$vertxVersion"
+    classpath "io.vertx:vertx-platform:$vertxVersion"
+  }
 }
 
 sourceSets {
@@ -59,73 +80,76 @@ sourceSets {
   }
 }
 
-task prepareVertxModule( type:Copy, dependsOn: 'classes' ) {
-  into "build/mod/$modulename-v$version"
-  from 'build/classes/main'
-  from 'src/main/conf'
+task copyMod( type:Copy, dependsOn: 'classes', description: 'Assemble the module into the local mods directory' ) {
+  into "mods/maven:$groupname:$artifact:$version"
+  from compileJava
+  from 'src/main/resources'
   into( 'lib' ) {
     from configurations.compile
   }
 }
 
-// Package into build/libs/mod.zip
-task distZip( type: Zip, dependsOn: 'prepareVertxModule' ) {
+task modZip( type: Zip, dependsOn: 'pullInDeps', description: 'Package the module .zip file') {
   group = 'vert.x'
-  description = "Assembles a vert.x module in 'mod.zip' format"
+  description = "Assembles a vert.x module"
   destinationDir = project.file('build/libs')
-  archiveName = 'mod.zip'
-  from( project.file( "build/mod/${modulename}-v${version}" ) ).into( "${modulename}-v${version}" )
+  archiveName = "${artifact}-${version}" + ".zip"
+  from copyMod
 }
 
-// Check build/libs/mod.zip has a single root, and a mod.json entry
-task dist( dependsOn: 'distZip' ) << {
-  def entries = new java.util.zip.ZipFile( project.file( 'build/libs/mod.zip' ) ).entries().collect { it.name }
-  def oneRoot = entries.every { it.startsWith "${modulename}-v${version}/" }
-  def modjson = entries.find { it == "${modulename}-v${version}/mod.json" }
-  if( !oneRoot ) {
-    throw new GradleException( "Invalid mod.zip.  Multiple root folders located!" )
-  }
-  else if( !modjson ) {
-    throw new GradleException( "Invalid mod.zip.  Cannot locate ${modulename}-v${version}/mod.json" )
-  }
+artifacts {
+  archives modZip
 }
 
-task prepareVertxTest(type: Sync, dependsOn: ['prepareVertxModule']) {
-  from 'build/mod'
-  into 'build/tmp/mod-test'
+task cleanModsDir(type: Delete) {
+  delete 'mods'
+}
+
+clean {
+  dependsOn cleanModsDir
 }
 
 test {
-  // Can't have the app on the vert.x classpath
-  classpath = files( classpath.findAll {
-    !( it.toString() ==~ /.+build\/(classes|resources)\/main$/ )
-  } )
+  dependsOn copyMod
+  // Remove any classpath entries for the module classes and resources- these must be picked up using the module classloader from
+  // inside the module, not from the system classpath
+  classpath -= sourceSets.main.output
+  classpath -= configurations.compile
 
-  // Some vert.x properties
+//  classpath.each {
+//    File file ->
+//      println file.absolutePath
+//  }
+
+  // Make sure tests are always run!
+  outputs.upToDateWhen { false }
+
   systemProperty 'vertx.test.timeout', 15
-  systemProperty 'vertx.mods', "$projectDir/build/tmp/mod-test"
   systemProperty 'vertx.version', "$project.version"
+  systemProperty 'vertx.modulename', "maven:$groupname:$artifact:$version"
 
   // Show output
   testLogging.showStandardStreams = true
 
-  // No idea why we need to depend on testClasses...
-  dependsOn << [ 'testClasses', 'prepareVertxTest' ]
+  testLogging { exceptionFormat "full" }
 }
 
-task collectDeps(type: Copy) {
-  group = 'vert.x'
-  description = 'conveniently collect dependencies for other IDEs'
-  destinationDir = file("build/deps")
-  into("compile") {
-    from configurations.compile
-  }
-  into("test") {
-    from configurations.testCompile
-  }
+task runMod(dependsOn: copyMod, description: 'Run the module using all the build dependencies (not using installed vertx') << {
+  def pm = PlatformLocator.factory.createPlatformManager()
+  pm.deployModule("maven:$groupname:$artifact:$version", null, 1, new Handler<String>() {
+    public void handle(String deploymentID) {
+      System.out.println("CTRL-C to stop server")
+    }
+  });
+  Thread.sleep(Long.MAX_VALUE);
 }
 
-task wrapper(type: Wrapper) {
-    gradleVersion = '1.1'
-    jarFile = 'gradle/wrapper.jar'
+task pullInDeps(dependsOn: copyMod, description: 'Pull in all the module dependencies for the module into the nested mods directory') << {
+  if (pullInDeps == 'true') {
+    def pm = PlatformLocator.factory.createPlatformManager()
+    def modName = "maven:$groupname:$artifact:$version"
+    System.out.println("Pulling in dependencies for module " + modName + " Please wait")
+    pm.pullInDependencies(modName)
+    System.out.println("Dependencies pulled into mods directory of module")
+  }
 }
