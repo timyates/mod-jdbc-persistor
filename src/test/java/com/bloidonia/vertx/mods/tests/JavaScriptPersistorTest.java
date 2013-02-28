@@ -63,6 +63,11 @@ public class JavaScriptPersistorTest extends TestBase {
   }
 
   @Test
+  public void testTimestamp() throws Exception {
+    startTest(getMethodName());
+  }
+
+  @Test
   public void testCreateAndInsert() throws Exception {
     startTest(getMethodName());
   }
