@@ -195,6 +195,20 @@ or
       message: <message>
     }
 
+### A note on Timestamps
+
+Inserting timestamps can be done by specifying them as Strings in the correct Timestamp format, ie in a table defined by:
+
+    CREATE TABLE test ( id INTEGER, time TIMESTAMP )
+
+We can insert data using:
+
+    {
+      action: "insert",
+      stmt: "INSERT INTO test( id, time ) VALUES( ?, ? )",
+      values: [ [ 1, '2013-02-14 12:30:44' ], ... ]
+    }
+
 ## UPDATE
 
 ### Inputs
