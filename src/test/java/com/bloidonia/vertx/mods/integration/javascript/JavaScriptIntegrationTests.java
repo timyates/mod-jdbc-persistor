@@ -25,6 +25,17 @@ import org.junit.runner.RunWith;
 @TestVerticleInfo(filenameFilter=".+\\.js", funcRegex="function[\\s]+(test[^\\s(]+)")
 @RunWith(ScriptClassRunner.class)
 public class JavaScriptIntegrationTests {
+
+  public static int sleep( int seconds, int id ) {
+    try {
+      Thread.sleep( seconds * 1000 ) ;
+      return id ;
+    }
+    catch( Exception e ) {
+      return -id ;
+    }
+  }
+
   @Test
   public void __vertxDummy() {
   }
