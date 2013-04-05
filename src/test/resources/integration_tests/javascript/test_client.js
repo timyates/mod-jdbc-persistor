@@ -14,19 +14,34 @@
  * limitations under the License.
  */
 
-load('test_utils.js')
-load('vertx.js')
-
-var tu = new TestUtils();
+load("vertx.js");
+load("vertx_tests.js");
 
 var eb = vertx.eventBus;
 
-function testInvalidAction() {
+var script = this ;
+var persistorConfig = { address: 'test.persistor', url: 'jdbc:hsqldb:mem:' + vertx.generateUUID() + '?shutdown=true' }
+java.lang.System.out.println( persistorConfig.url ) ;
+var readyAddress = persistorConfig.address + '.ready'
+
+var readyHandler = function( msg ) {
+  if( msg.status === 'ok' ) {
+    initTests( script ) ;
+    eb.unregisterHandler( readyAddress, readyHandler ) ;
+  }
+} ;
+
+// This will get called by the jdbc-persistor when it has installed the work-queue
+eb.registerHandler( readyAddress, readyHandler ) ;
+
+vertx.deployModule(java.lang.System.getProperty( 'vertx.modulename' ), persistorConfig, 1, function() {} ) ;
+
+function test_InvalidAction() {
   eb.send( 'test.persistor', {
     action: 'blahblahblah'
   }, function( reply ) {
-    tu.azzert( reply.status === 'error' ) ;
-    tu.testComplete() ;
+    vassert.assertEquals( reply.status, 'error' ) ;
+    vassert.testComplete() ;
   } )
 }
 
@@ -66,22 +81,22 @@ function testConcurrency() {
     action: 'execute',
     stmt: "CREATE FUNCTION sleep(seconds INTEGER, num INTEGER) RETURNS INTEGER " +
           "LANGUAGE JAVA DETERMINISTIC NO SQL EXTERNAL NAME " +
-          "'CLASSPATH:com.bloidonia.vertx.mods.tests.JavaScriptPersistorTest.sleep'"
+          "'CLASSPATH:com.bloidonia.vertx.mods.integration.javascript.JavaScriptIntegrationTests.sleep'"
   }, function( reply ) {
-    tu.azzert( reply.status === 'ok', reply.message ) ;
+    vassert.assertEquals( reply.status, 'ok' ) ;
     var start = new Date() ;
     for( var i = 0 ; i < todo ; i++ ) {
       eb.send( 'test.persistor', {
         action: 'select',
         stmt:   'CALL sleep( 1, ' + ( i + 1 ) + ' )'
       }, function( reply ) {
-        tu.azzert( reply.status === 'ok' ) ;
+        vassert.assertEquals( reply.status, 'ok' ) ;
         done++ ;
         java.lang.System.out.println( "Done " + done + " (task " + reply.result[0][ '@p0' ] + " returned ok)" ) ;
         if( done == todo ) {
           var diff = new Date().getTime() - start.getTime() ;
-          tu.azzert( diff < 5000, 'Expected time delay to be less than 5s, but it was ' + ( diff / 1000 ) + 's' ) ;
-          tu.testComplete() ;
+          vassert.assertTrue( diff < 5000 ) ;
+          vassert.testComplete() ;
         }
       } ) ;
     }
@@ -94,9 +109,9 @@ function testSimpleSelect() {
     action: 'select',
     stmt:   'SELECT * FROM INFORMATION_SCHEMA.SYSTEM_USERS'
   }, function( reply ) {
-    tu.azzert( reply.status === 'ok' ) ;
-    tu.azzert( reply.result != undefined ) ;
-    tu.testComplete() ;
+    vassert.assertEquals( reply.status, 'ok' ) ;
+    vassert.assertNotSame( reply.result, undefined ) ;
+    vassert.testComplete() ;
   } )
 }
 
@@ -111,9 +126,9 @@ function testBatchedSimpleSelector() {
       if( reply.status === 'more-exist' ) {
         replier( {}, createReplyHandler() ) ;
       } else {
-        tu.azzert( reply.status === 'ok' ) ;
-        tu.azzert( received === num, 'Expected ' + num + 'records in total.  Got ' + received + ' insead' ) ;
-        tu.testComplete() ;
+        vassert.assertEquals( reply.status, 'ok' ) ;
+        vassert.assertEquals( received, num, 0 ) ;
+        vassert.testComplete() ;
       }
     }
   }
@@ -129,9 +144,9 @@ function testBatchedSimpleSelector() {
       stmt:  'INSERT INTO test ( name, age ) VALUES ( ?, ? )',
       values: values
     }, function( reply ) {
-      tu.azzert( reply.status === 'ok' ) ;
-      tu.azzert( reply.updated === num, 'updated should equal ' + num + ', actually was ' + reply.updated ) ;
-      tu.azzert( reply.result.length === num, 'should get back ' + num + ', primary keys' ) ;
+      vassert.assertEquals( reply.status, 'ok' ) ;
+      vassert.assertEquals( reply.updated, num, 0 ) ;
+      vassert.assertEquals( reply.result.length, num, 0 ) ;
       eb.send('test.persistor', {
         action: 'select',
         stmt:   'SELECT * FROM test ORDER BY age ASC',
@@ -184,31 +199,31 @@ function testCreateAndInsert() {
       stmt:  'INSERT INTO test( name, age ) VALUES ( ?, ? )',
       values: [ [ 'tim', 65 ], [ 'dave', 29 ], [ 'mike', 42 ] ]
     }, function( reply ) {
-      tu.azzert( reply.status === 'ok' ) ;
-      tu.azzert( reply.result != undefined ) ;
-      tu.azzert( reply.result.length == 3 ) ;
-      tu.azzert( reply.result[ 0 ].ID == 1 ) ;
-      tu.azzert( reply.result[ 1 ].ID == 2 ) ;
-      tu.azzert( reply.result[ 2 ].ID == 3 ) ;
+      vassert.assertEquals( reply.status, 'ok' ) ;
+      vassert.assertNotSame( reply.result, undefined ) ;
+      vassert.assertEquals( reply.result.length, 3, 0 ) ;
+      vassert.assertEquals( reply.result[ 0 ].ID, 1, 0 ) ;
+      vassert.assertEquals( reply.result[ 1 ].ID, 2, 0 ) ;
+      vassert.assertEquals( reply.result[ 2 ].ID, 3, 0 ) ;
       eb.send( 'test.persistor', {
         action: 'select',
         stmt:   'SELECT * FROM test ORDER BY age ASC'
       }, function( reply ) {
-        tu.azzert( reply.status === 'ok' ) ;
-        tu.azzert( reply.result.length == 3 ) ;
-        tu.azzert( reply.result[ 0 ].ID   === 2 ) ;
-        tu.azzert( reply.result[ 0 ].NAME === 'dave' ) ;
-        tu.azzert( reply.result[ 0 ].AGE  === 29 ) ;
+        vassert.assertEquals( reply.status, 'ok' ) ;
+        vassert.assertEquals( reply.result.length, 3, 0 ) ;
+        vassert.assertEquals( reply.result[ 0 ].ID, 2, 0 ) ;
+        vassert.assertEquals( reply.result[ 0 ].NAME, 'dave' ) ;
+        vassert.assertEquals( reply.result[ 0 ].AGE, 29, 0 ) ;
 
-        tu.azzert( reply.result[ 1 ].ID   === 3 ) ;
-        tu.azzert( reply.result[ 1 ].NAME === 'mike' ) ;
-        tu.azzert( reply.result[ 1 ].AGE  === 42 ) ;
+        vassert.assertEquals( reply.result[ 1 ].ID, 3, 0 ) ;
+        vassert.assertEquals( reply.result[ 1 ].NAME, 'mike' ) ;
+        vassert.assertEquals( reply.result[ 1 ].AGE, 42, 0 ) ;
 
-        tu.azzert( reply.result[ 2 ].ID   === 1 ) ;
-        tu.azzert( reply.result[ 2 ].NAME === 'tim' ) ;
-        tu.azzert( reply.result[ 2 ].AGE  === 65 ) ;
+        vassert.assertEquals( reply.result[ 2 ].ID, 1, 0 ) ;
+        vassert.assertEquals( reply.result[ 2 ].NAME, 'tim' ) ;
+        vassert.assertEquals( reply.result[ 2 ].AGE, 65, 0 ) ;
 
-        tu.testComplete() ;
+        vassert.testComplete() ;
       } ) ;
     } ) ;
   } )
@@ -220,31 +235,32 @@ function testCreateAndInsertViaStmt() {
       action: 'insert',
       stmt:  "INSERT INTO test( name, age ) VALUES ( 'tim', 65 ), ( 'dave', 29 ), ( 'mike', 42 )",
     }, function( reply ) {
-      tu.azzert( reply.status === 'ok' ) ;
-      tu.azzert( reply.result != undefined ) ;
-      tu.azzert( reply.result.length == 3 ) ;
-      tu.azzert( reply.result[ 0 ].ID != null ) ;
-      tu.azzert( reply.result[ 1 ].ID != null ) ;
-      tu.azzert( reply.result[ 2 ].ID != null ) ;
+      vassert.assertEquals( reply.status, 'ok' ) ;
+      vassert.assertNotSame( reply.result, undefined ) ;
+      vassert.assertEquals( reply.result.length, 3, 0 ) ;
+      vassert.assertEquals( reply.result[ 0 ].ID, 1, 0 ) ;
+      vassert.assertEquals( reply.result[ 1 ].ID, 2, 0 ) ;
+      vassert.assertEquals( reply.result[ 2 ].ID, 3, 0 ) ;
       eb.send( 'test.persistor', {
         action: 'select',
         stmt:   'SELECT * FROM test ORDER BY age ASC'
       }, function( reply ) {
-        tu.azzert( reply.status === 'ok' ) ;
-        tu.azzert( reply.result.length == 3, 'Expected 3 results.  Got ' + reply.result.length ) ;
-        tu.azzert( reply.result[ 0 ].ID != null ) ;
-        tu.azzert( reply.result[ 0 ].NAME === 'dave' ) ;
-        tu.azzert( reply.result[ 0 ].AGE  === 29 ) ;
+        vassert.assertEquals( reply.status, 'ok' ) ;
+        vassert.assertEquals( reply.result.length, 3, 0 ) ;
 
-        tu.azzert( reply.result[ 1 ].ID != null ) ;
-        tu.azzert( reply.result[ 1 ].NAME === 'mike' ) ;
-        tu.azzert( reply.result[ 1 ].AGE  === 42 ) ;
+        vassert.assertEquals( reply.result[ 0 ].ID, 2, 0 ) ;
+        vassert.assertEquals( reply.result[ 0 ].NAME, 'dave' ) ;
+        vassert.assertEquals( reply.result[ 0 ].AGE, 29, 0 ) ;
 
-        tu.azzert( reply.result[ 2 ].ID != null ) ;
-        tu.azzert( reply.result[ 2 ].NAME === 'tim' ) ;
-        tu.azzert( reply.result[ 2 ].AGE  === 65 ) ;
+        vassert.assertEquals( reply.result[ 1 ].ID, 3, 0 ) ;
+        vassert.assertEquals( reply.result[ 1 ].NAME, 'mike' ) ;
+        vassert.assertEquals( reply.result[ 1 ].AGE, 42, 0 ) ;
 
-        tu.testComplete() ;
+        vassert.assertEquals( reply.result[ 2 ].ID, 1, 0 ) ;
+        vassert.assertEquals( reply.result[ 2 ].NAME, 'tim' ) ;
+        vassert.assertEquals( reply.result[ 2 ].AGE, 65, 0 ) ;
+
+        vassert.testComplete() ;
       } ) ;
     } ) ;
   } )
@@ -262,16 +278,16 @@ function testHammerInsert() {
       stmt:  "INSERT INTO test( age ) VALUES ( ? )",
       values: valueList
     }, function( reply ) {
-      tu.azzert( reply.status === 'ok' ) ;
-      tu.azzert( reply.result != undefined ) ;
-      tu.azzert( reply.result.length == hammerSize ) ;
+      vassert.assertEquals( reply.status, 'ok' ) ;
+      vassert.assertNotSame( reply.result, undefined ) ;
+      vassert.assertEquals( reply.result.length, hammerSize, 0 ) ;
       eb.send( 'test.persistor', {
         action: 'select',
         stmt:   'SELECT COUNT( * ) AS CNT FROM test'
       }, function( reply ) {
-        tu.azzert( reply.status === 'ok' ) ;
-        tu.azzert( reply.result[ 0 ].CNT   === hammerSize ) ;
-        tu.testComplete() ;
+        vassert.assertEquals( reply.status, 'ok' ) ;
+        vassert.assertEquals( reply.result[ 0 ].CNT, hammerSize, 0 ) ;
+        vassert.testComplete() ;
       } ) ;
     } ) ;
   } )
@@ -292,18 +308,18 @@ function testHammerParallel() {
         stmt:  "INSERT INTO test( age ) VALUES ( ? )",
         values: valueList
       }, function( reply ) {
-        tu.azzert( reply.status === 'ok' ) ;
-        tu.azzert( reply.result != undefined ) ;
-        tu.azzert( reply.result.length == hammerSize ) ;
+        vassert.assertEquals( reply.status, 'ok' ) ;
+        vassert.assertNotSame( reply.result, undefined ) ;
+        vassert.assertEquals( reply.result.length, hammerSize, 0 ) ;
         received++ ;
         if( received === loops ) {
           eb.send( 'test.persistor', {
             action: 'select',
             stmt:   'SELECT COUNT( * ) AS CNT FROM test'
           }, function( reply ) {
-            tu.azzert( reply.status === 'ok' ) ;
-            tu.azzert( reply.result[ 0 ].CNT   === hammerSize * loops, 'Expected ' + hammerSize * loops + '. Got ' + reply.result[ 0 ].CNT ) ;
-            tu.testComplete() ;
+            vassert.assertEquals( reply.status, 'ok' ) ;
+            vassert.assertEquals( reply.result[ 0 ].CNT, hammerSize * loops, 0 ) ;
+            vassert.testComplete() ;
           } ) ;
         }
       } ) ;
@@ -316,26 +332,26 @@ function testRollback() {
     eb.send( 'test.persistor', {
       action: 'transaction'
     }, function( reply, replier ) {
-      tu.azzert( reply.status === 'ok' ) ;
-      tu.azzert( reply.result == undefined ) ;
+      vassert.assertEquals( reply.status, 'ok' ) ;
+      vassert.assertEquals( reply.result, undefined ) ;
       replier( {
         action: 'insert',
         stmt:  'INSERT INTO test( name, age ) VALUES ( ?, ? )',
         values: [ [ 'tim', 65 ], [ 'dave', 29 ], [ 'mike', 42 ] ]
       }, function( reply, replier ) {
-        tu.azzert( reply.status === 'ok' ) ;
-        tu.azzert( reply.result.length == 3 ) ;
+        vassert.assertEquals( reply.status, 'ok' ) ;
+        vassert.assertEquals( reply.result.length, 3, 0 ) ;
         replier( {
           action:'rollback'
         }, function( reply ) {
-          tu.azzert( reply.status === 'ok' ) ;
+          vassert.assertEquals( reply.status, 'ok' ) ;
           eb.send( 'test.persistor', {
             action: 'select',
             stmt:   'SELECT * FROM test ORDER BY age ASC'
           }, function( reply ) {
-            tu.azzert( reply.status === 'ok' ) ;
-            tu.azzert( reply.result.length == 0 ) ;
-            tu.testComplete() ;
+            vassert.assertEquals( reply.status, 'ok' ) ;
+            vassert.assertEquals( reply.result.length, 0, 0 ) ;
+            vassert.testComplete() ;
           } ) ;
         } ) ;
       } ) ;
@@ -348,56 +364,32 @@ function testCommit() {
     eb.send( 'test.persistor', {
       action: 'transaction'
     }, function( reply, replier ) {
-      tu.azzert( reply.status === 'ok' ) ;
-      tu.azzert( reply.result == undefined ) ;
+      vassert.assertEquals( reply.status, 'ok' ) ;
+      vassert.assertEquals( reply.result, undefined ) ;
       replier( {
         action: 'insert',
         stmt:  'INSERT INTO test( name, age ) VALUES ( ?, ? )',
         values: [ [ 'tim', 65 ], [ 'dave', 29 ], [ 'mike', 42 ] ]
       }, function( reply, replier ) {
-        tu.azzert( reply.status === 'ok' ) ;
-        tu.azzert( reply.result.length == 3 ) ;
+        vassert.assertEquals( reply.status, 'ok' ) ;
+        vassert.assertEquals( reply.result.length, 3, 0 ) ;
         replier( {
           action:'commit'
         }, function( reply ) {
-          tu.azzert( reply.status === 'ok' ) ;
+          vassert.assertEquals( reply.status, 'ok' ) ;
           eb.send( 'test.persistor', {
             action: 'select',
             stmt:   'SELECT * FROM test ORDER BY age ASC'
           }, function( reply ) {
-            tu.azzert( reply.status === 'ok' ) ;
-            tu.azzert( reply.result.length == 3 ) ;
-            tu.azzert( reply.result[ 0 ].NAME == 'dave', 'Expected Dave first' ) ;
-            tu.azzert( reply.result[ 1 ].NAME == 'mike', 'Mike should be second' ) ;
-            tu.azzert( reply.result[ 2 ].NAME == 'tim', 'And Tim last' ) ;
-            tu.testComplete() ;
+            vassert.assertEquals( reply.status, 'ok' ) ;
+            vassert.assertEquals( reply.result.length, 3, 0 ) ;
+            vassert.assertEquals( reply.result[ 0 ].NAME, 'dave' ) ;
+            vassert.assertEquals( reply.result[ 1 ].NAME, 'mike' ) ;
+            vassert.assertEquals( reply.result[ 2 ].NAME, 'tim' ) ;
+            vassert.testComplete() ;
           } ) ;
         } ) ;
       } ) ;
     } ) ;
   } ) ;
-}
-//
-tu.registerTests( this ) ;
-
-var persistorConfig = { address: 'test.persistor', url: 'jdbc:hsqldb:mem:' + vertx.generateUUID() + '?shutdown=true' }
-
-java.lang.System.out.println( persistorConfig.url ) ;
-
-var readyAddress = persistorConfig.address + '.ready'
-
-var readyHandler = function( msg ) {
-  if( msg.status === 'ok' ) {
-    tu.appReady();
-    eb.unregisterHandler( readyAddress, readyHandler ) ;
-  }
-} ;
-
-// This will get called by the jdbc-persistor when it has installed the work-queue
-eb.registerHandler( readyAddress, readyHandler ) ;
-
-vertx.deployModule('com.bloidonia.jdbc-persistor-v' + java.lang.System.getProperty('vertx.version'), persistorConfig, 1, function() {} ) ;
-
-function vertxStop() {
-  tu.appStopped();
 }
