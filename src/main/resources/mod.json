@@ -1,4 +1,5 @@
 {
-  "main": "com.bloidonia.vertx.mods.JdbcBusMod",
+  "main": "com.bloidonia.vertx.mods.JdbcProcessor",
+  "multi-threaded": true,
   "worker": true
 }

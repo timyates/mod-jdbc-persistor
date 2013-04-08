@@ -62,14 +62,14 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
 
   private volatile static ConcurrentHashMap<String,ComboPooledDataSource> poolMap = new ConcurrentHashMap<String,ComboPooledDataSource>( 8, 0.9f, 1 ) ;
 
-  private static void setupPool( String address,
-                                 String driver,
-                                 String url,
-                                 String username,
-                                 String password,
-                                 int minPool,
-                                 int maxPool,
-                                 int acquire ) throws Exception {
+  private static boolean setupPool( String address,
+                                    String driver,
+                                    String url,
+                                    String username,
+                                    String password,
+                                    int    minPool,
+                                    int    maxPool,
+                                    int    acquire ) throws Exception {
     if( poolMap.get( address ) == null ) {
       synchronized( poolMap ) {
         if( poolMap.get( address ) == null ) {
@@ -84,6 +84,25 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
           pool.setAcquireIncrement( acquire ) ;
           if( poolMap.putIfAbsent( address, pool ) != null ) {
             pool.close() ;
+          }
+          else {
+            return true ;
+          }
+        }
+      }
+    }
+    return false ;
+  }
+
+  private static void closePool( String address, String url ) throws SQLException {
+    if( poolMap.get( address ) != null ) {
+      synchronized( poolMap ) {
+        ComboPooledDataSource pool = poolMap.get( address ) ;
+        if( pool != null ) {
+          pool = poolMap.remove( address ) ;
+          if( pool != null ) {
+            pool.close() ;
+            DriverManager.deregisterDriver( DriverManager.getDriver( url ) ) ;
           }
         }
       }
@@ -121,10 +140,15 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     transTimeout = getOptionalIntConfig( "transactiontimeout", 10000 ) ;
 
     try {
-      setupPool( address, driver, url, username, password, minpool, maxpool, acquire ) ;
-      eb.registerHandler( uid, this ) ;
-      eb.send( address + ".register", new JsonObject() {{
-        putString( "processor", uid ) ;
+      if( setupPool( address, driver, url, username, password, minpool, maxpool, acquire ) ) {
+        logger.debug( "Pool created" ) ;
+      }
+      else {
+        logger.debug( "Pool already exists" ) ; 
+      }
+      eb.registerHandler( address, this ) ;
+      eb.send( String.format( "%s.ready", address ), new JsonObject() {{
+        putString( "status", "ok" ) ;
       }} ) ;
     }
     catch( Exception ex ) {
@@ -137,19 +161,11 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
       putString( "processor", uid ) ;
     }} ) ;
     eb.unregisterHandler( uid, this ) ;
-    synchronized( poolMap ) {
-      ComboPooledDataSource pool = poolMap.get( address ) ;
-      if( pool != null ) {
-        pool = poolMap.remove( address ) ;
-        if( pool != null ) {
-          pool.close() ;
-          try {
-            DriverManager.deregisterDriver( DriverManager.getDriver( url ) ) ;
-          } catch( SQLException ex ) {
-            logger.info( String.format( "Could not deregister driver: %s", ex.getMessage() ) ) ;
-          }
-        }
-      }
+    try {
+      closePool( address, url ) ;
+    }
+    catch( SQLException ex ) {
+      logger.error( String.format( "Error closing pool: %s", ex.getMessage() ), ex ) ;
     }
   }
 

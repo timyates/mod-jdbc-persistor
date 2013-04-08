@@ -35,8 +35,4 @@ public class JavaScriptIntegrationTests {
       return -id ;
     }
   }
-
-  @Test
-  public void __vertxDummy() {
-  }
 }
