@@ -188,13 +188,9 @@ function testTimestamp() {
       }, function( reply ) {
         vassert.assertEquals( reply.status, 'ok' ) ;
         vassert.assertEquals( reply.result.length, 3, 0 ) ;
-        vassert.assertEquals( reply.result[ 0 ].ID, 1, 0 ) ;
+
         vassert.assertEquals( reply.result[ 0 ].TIME, '2013-02-14 12:30:44' ) ;
-
-        vassert.assertEquals( reply.result[ 1 ].ID, 2, 0 ) ;
         vassert.assertEquals( reply.result[ 1 ].TIME, '2013-02-15 12:00:00' ) ;
-
-        vassert.assertEquals( reply.result[ 2 ].ID, 3, 0 ) ;
         vassert.assertEquals( reply.result[ 2 ].TIME, '2013-02-16 11:00:00' ) ;
 
         checkStatus() ;
