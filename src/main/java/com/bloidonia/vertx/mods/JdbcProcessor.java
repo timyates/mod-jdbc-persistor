@@ -60,7 +60,35 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
   private int    batchTimeout ;
   private int    transTimeout ;
 
-  private static ConcurrentHashMap<String,ComboPooledDataSource> poolMap = new ConcurrentHashMap<String,ComboPooledDataSource>( 8, 0.9f, 1 ) ;
+  private volatile static ConcurrentHashMap<String,ComboPooledDataSource> poolMap = new ConcurrentHashMap<String,ComboPooledDataSource>( 8, 0.9f, 1 ) ;
+
+  private static void setupPool( String address,
+                                 String driver,
+                                 String url,
+                                 String username,
+                                 String password,
+                                 int minPool,
+                                 int maxPool,
+                                 int acquire ) throws Exception {
+    if( poolMap.get( address ) == null ) {
+      synchronized( poolMap ) {
+        if( poolMap.get( address ) == null ) {
+          DriverManager.registerDriver( (Driver)Class.forName( driver ).newInstance() ) ;
+          ComboPooledDataSource pool = new ComboPooledDataSource() ;
+          pool.setDriverClass( driver ) ;
+          pool.setJdbcUrl( url ) ;
+          pool.setUser( username ) ;
+          pool.setPassword( password ) ;
+          pool.setMinPoolSize( minPool ) ;
+          pool.setMaxPoolSize( maxPool ) ;
+          pool.setAcquireIncrement( acquire ) ;
+          if( poolMap.putIfAbsent( address, pool ) != null ) {
+            pool.close() ;
+          }
+        }
+      }
+    }
+  }
 
   public void start() {
     super.start() ;
@@ -93,22 +121,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     transTimeout = getOptionalIntConfig( "transactiontimeout", 10000 ) ;
 
     try {
-      synchronized( poolMap ) {
-        if( poolMap.get( address ) == null ) {
-          DriverManager.registerDriver( (Driver)Class.forName( driver ).newInstance() ) ;
-          ComboPooledDataSource pool = new ComboPooledDataSource() ;
-          pool.setDriverClass( driver ) ;
-          pool.setJdbcUrl( url ) ;
-          pool.setUser( username ) ;
-          pool.setPassword( password ) ;
-          pool.setMinPoolSize( minpool ) ;
-          pool.setMaxPoolSize( maxpool ) ;
-          pool.setAcquireIncrement( acquire ) ;
-          if( poolMap.putIfAbsent( address, pool ) != null ) {
-            pool.close() ;
-          }
-        }
-      }
+      setupPool( address, driver, url, username, password, minpool, maxpool, acquire ) ;
       eb.registerHandler( uid, this ) ;
       eb.send( address + ".register", new JsonObject() {{
         putString( "processor", uid ) ;
