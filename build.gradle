@@ -65,23 +65,23 @@ test {
 If you're uploading stuff to Maven, Gradle needs to generate a POM.
 Please edit the details below.
  */
-def configurePom(def pom) {
+def configurePom( def pom ) {
   pom.project {
-    description 'MongoDB Persistor Module for Vert.x'
+    description 'JDBC Persistor Module for Vert.x'
     inceptionYear '2012'
     packaging 'zip'
-    url 'https://github.com/vert-x/mod-mongo-persistor'
+    url 'https://github.com/timyates/mod-jdbc-persistor'
 
     developers {
       developer {
-        id 'purplefox'
-        name 'Tim Fox'
-        // email 'developer email'
+        id 'timyates'
+        name 'Tim Yates'
+        email 'tim@bloidonia.com'
       }
     }
 
     scm {
-      url 'https://github.com/vert-x/mod-mongo-persistor'
+      url 'https://github.com/timyates/mod-jdbc-persistor'
     }
 
     licenses {
@@ -93,7 +93,7 @@ def configurePom(def pom) {
     }
 
     properties {
-      setProperty('project.build.sourceEncoding', 'UTF8')
+      setProperty( 'project.build.sourceEncoding', 'UTF8' )
     }
   }
 }
