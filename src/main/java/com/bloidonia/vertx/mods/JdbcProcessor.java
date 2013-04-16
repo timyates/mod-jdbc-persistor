@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 the original author or authors.
+ * Copyright 2012-2013 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,7 +60,64 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
   private int    batchTimeout ;
   private int    transTimeout ;
 
-  private static ConcurrentHashMap<String,ComboPooledDataSource> poolMap = new ConcurrentHashMap<String,ComboPooledDataSource>( 8, 0.9f, 1 ) ;
+  private volatile static ConcurrentHashMap<String,ComboPooledDataSource> poolMap = new ConcurrentHashMap<String,ComboPooledDataSource>( 8, 0.9f, 1 ) ;
+
+  private static boolean setupPool( String  address,
+                                    String  driver,
+                                    String  url,
+                                    String  username,
+                                    String  password,
+                                    int     minPool,
+                                    int     maxPool,
+                                    int     acquire,
+                                    String  automaticTestTable,
+                                    int     idleConnectionTestPeriod,
+                                    String  preferredTestQuery,
+                                    boolean testConnectionOnCheckin,
+                                    boolean testConnectionOnCheckout ) throws Exception {
+    if( poolMap.get( address ) == null ) {
+      synchronized( poolMap ) {
+        if( poolMap.get( address ) == null ) {
+          DriverManager.registerDriver( (Driver)Class.forName( driver ).newInstance() ) ;
+          ComboPooledDataSource pool = new ComboPooledDataSource() ;
+          pool.setDriverClass( driver ) ;
+          pool.setJdbcUrl( url ) ;
+          pool.setUser( username ) ;
+          pool.setPassword( password ) ;
+          pool.setMinPoolSize( minPool ) ;
+          pool.setMaxPoolSize( maxPool ) ;
+          pool.setAcquireIncrement( acquire ) ;
+          pool.setAutomaticTestTable( automaticTestTable ) ;
+          pool.setIdleConnectionTestPeriod( idleConnectionTestPeriod ) ;
+          pool.setPreferredTestQuery( preferredTestQuery ) ;
+          pool.setTestConnectionOnCheckin( testConnectionOnCheckin ) ;
+          pool.setTestConnectionOnCheckout( testConnectionOnCheckout ) ;
+          if( poolMap.putIfAbsent( address, pool ) != null ) {
+            pool.close() ;
+          }
+          else {
+            return true ;
+          }
+        }
+      }
+    }
+    return false ;
+  }
+
+  private static void closePool( String address, String url ) throws SQLException {
+    if( poolMap.get( address ) != null ) {
+      synchronized( poolMap ) {
+        ComboPooledDataSource pool = poolMap.get( address ) ;
+        if( pool != null ) {
+          pool = poolMap.remove( address ) ;
+          if( pool != null ) {
+            pool.close() ;
+            DriverManager.deregisterDriver( DriverManager.getDriver( url ) ) ;
+          }
+        }
+      }
+    }
+  }
 
   public void start() {
     super.start() ;
@@ -72,6 +129,12 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     url          = getOptionalStringConfig( "url",      "jdbc:hsqldb:mem:test?shutdown=true"  ) ;
     username     = getOptionalStringConfig( "username", ""                      ) ;
     password     = getOptionalStringConfig( "password", ""                      ) ;
+
+    String automaticTestTable        = getOptionalStringConfig( "c3p0.automaticTestTable", null ) ;
+    int idleConnectionTestPeriod     = getOptionalIntConfig( "c3p0.idleConnectionTestPeriod", 0 ) ;
+    String preferredTestQuery        = getOptionalStringConfig( "c3p0.preferredTestQuery", null ) ;
+    boolean testConnectionOnCheckin  = getOptionalBooleanConfig( "c3p0.testConnectionOnCheckin", false ) ;
+    boolean testConnectionOnCheckout = getOptionalBooleanConfig( "c3p0.testConnectionOnCheckout", false ) ;
 
     minpool      = getOptionalIntConfig( "minpool",    5  ) ;
     maxpool      = getOptionalIntConfig( "maxpool",    20 ) ;
@@ -93,25 +156,17 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     transTimeout = getOptionalIntConfig( "transactiontimeout", 10000 ) ;
 
     try {
-      synchronized( poolMap ) {
-        if( poolMap.get( address ) == null ) {
-          DriverManager.registerDriver( (Driver)Class.forName( driver ).newInstance() ) ;
-          ComboPooledDataSource pool = new ComboPooledDataSource() ;
-          pool.setDriverClass( driver ) ;
-          pool.setJdbcUrl( url ) ;
-          pool.setUser( username ) ;
-          pool.setPassword( password ) ;
-          pool.setMinPoolSize( minpool ) ;
-          pool.setMaxPoolSize( maxpool ) ;
-          pool.setAcquireIncrement( acquire ) ;
-          if( poolMap.putIfAbsent( address, pool ) != null ) {
-            pool.close() ;
-          }
-        }
+      if( setupPool( address, driver, url, username, password, minpool, maxpool, acquire,
+                     automaticTestTable, idleConnectionTestPeriod, preferredTestQuery,
+                     testConnectionOnCheckin, testConnectionOnCheckout ) ) {
+        logger.debug( "Pool created" ) ;
       }
-      eb.registerHandler( uid, this ) ;
-      eb.send( address + ".register", new JsonObject() {{
-        putString( "processor", uid ) ;
+      else {
+        logger.debug( "Pool already exists" ) ; 
+      }
+      eb.registerHandler( address, this ) ;
+      eb.send( String.format( "%s.ready", address ), new JsonObject() {{
+        putString( "status", "ok" ) ;
       }} ) ;
     }
     catch( Exception ex ) {
@@ -124,19 +179,11 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
       putString( "processor", uid ) ;
     }} ) ;
     eb.unregisterHandler( uid, this ) ;
-    synchronized( poolMap ) {
-      ComboPooledDataSource pool = poolMap.get( address ) ;
-      if( pool != null ) {
-        pool = poolMap.remove( address ) ;
-        if( pool != null ) {
-          pool.close() ;
-          try {
-            DriverManager.deregisterDriver( DriverManager.getDriver( url ) ) ;
-          } catch( SQLException ex ) {
-            logger.info( String.format( "Could not deregister driver: %s", ex.getMessage() ) ) ;
-          }
-        }
-      }
+    try {
+      closePool( address, url ) ;
+    }
+    catch( SQLException ex ) {
+      logger.error( String.format( "Error closing pool: %s", ex.getMessage() ), ex ) ;
     }
   }
 

@@ -55,6 +55,14 @@ This means you can do:
 
 And when the `readyHandler` is called, you know your work-queue is up and running.
 
+You can also add the following properties to the config object to test the connection ([see the c3p0 documentation for these properties here](http://www.mchange.com/projects/c3p0/#configuring_connection_testing))
+
+    c3p0.automaticTestTable
+    c3p0.idleConnectionTestPeriod
+    c3p0.preferredTestQuery
+    c3p0.testConnectionOnCheckin
+    c3p0.testConnectionOnCheckout
+
 Currently attempts to support:
 
 # Interface Specification
