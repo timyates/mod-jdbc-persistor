@@ -62,14 +62,19 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
 
   private volatile static ConcurrentHashMap<String,ComboPooledDataSource> poolMap = new ConcurrentHashMap<String,ComboPooledDataSource>( 8, 0.9f, 1 ) ;
 
-  private static boolean setupPool( String address,
-                                    String driver,
-                                    String url,
-                                    String username,
-                                    String password,
-                                    int    minPool,
-                                    int    maxPool,
-                                    int    acquire ) throws Exception {
+  private static boolean setupPool( String  address,
+                                    String  driver,
+                                    String  url,
+                                    String  username,
+                                    String  password,
+                                    int     minPool,
+                                    int     maxPool,
+                                    int     acquire,
+                                    String  automaticTestTable,
+                                    int     idleConnectionTestPeriod,
+                                    String  preferredTestQuery,
+                                    boolean testConnectionOnCheckin,
+                                    boolean testConnectionOnCheckout ) throws Exception {
     if( poolMap.get( address ) == null ) {
       synchronized( poolMap ) {
         if( poolMap.get( address ) == null ) {
@@ -82,6 +87,11 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
           pool.setMinPoolSize( minPool ) ;
           pool.setMaxPoolSize( maxPool ) ;
           pool.setAcquireIncrement( acquire ) ;
+          pool.setAutomaticTestTable( automaticTestTable ) ;
+          pool.setIdleConnectionTestPeriod( idleConnectionTestPeriod ) ;
+          pool.setPreferredTestQuery( preferredTestQuery ) ;
+          pool.setTestConnectionOnCheckin( testConnectionOnCheckin ) ;
+          pool.setTestConnectionOnCheckout( testConnectionOnCheckout ) ;
           if( poolMap.putIfAbsent( address, pool ) != null ) {
             pool.close() ;
           }
@@ -120,6 +130,12 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     username     = getOptionalStringConfig( "username", ""                      ) ;
     password     = getOptionalStringConfig( "password", ""                      ) ;
 
+    String automaticTestTable        = getOptionalStringConfig( "c3p0.automaticTestTable", null ) ;
+    int idleConnectionTestPeriod     = getOptionalIntConfig( "c3p0.idleConnectionTestPeriod", 0 ) ;
+    String preferredTestQuery        = getOptionalStringConfig( "c3p0.preferredTestQuery", null ) ;
+    boolean testConnectionOnCheckin  = getOptionalBooleanConfig( "c3p0.testConnectionOnCheckin", false ) ;
+    boolean testConnectionOnCheckout = getOptionalBooleanConfig( "c3p0.testConnectionOnCheckout", false ) ;
+
     minpool      = getOptionalIntConfig( "minpool",    5  ) ;
     maxpool      = getOptionalIntConfig( "maxpool",    20 ) ;
     acquire      = getOptionalIntConfig( "acquire",    5 ) ;
@@ -140,7 +156,9 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     transTimeout = getOptionalIntConfig( "transactiontimeout", 10000 ) ;
 
     try {
-      if( setupPool( address, driver, url, username, password, minpool, maxpool, acquire ) ) {
+      if( setupPool( address, driver, url, username, password, minpool, maxpool, acquire,
+                     automaticTestTable, idleConnectionTestPeriod, preferredTestQuery,
+                     testConnectionOnCheckin, testConnectionOnCheckout ) ) {
         logger.debug( "Pool created" ) ;
       }
       else {
