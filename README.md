@@ -2,7 +2,7 @@ Slowly gaining trust...  Could do with more eyes looking at it to check its asyn
 
 > For Vert-x 1.3.1, please use v1.2 of this mod
 
-More work probably required...
+### The current master branch here is WIP for Vert.x 2.0.0
 
 See the [current tests](https://github.com/timyates/mod-jdbc-persistor/blob/master/src/test/resources/test_client.js) for it in action though...
 
