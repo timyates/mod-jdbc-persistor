@@ -18,6 +18,7 @@ package com.bloidonia.vertx.mods ;
 
 import com.mchange.v2.c3p0.* ;
 
+import com.yammer.metrics.JmxReporter ;
 import com.yammer.metrics.Meter ;
 import com.yammer.metrics.MetricRegistry ;
 import static com.yammer.metrics.MetricRegistry.name ;
@@ -66,6 +67,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
 
   private static MetricRegistry metrics ;
   private static Meter requests ;
+  private static JmxReporter jmxReporter ;
 
   private volatile static ConcurrentHashMap<String,ComboPooledDataSource> poolMap = new ConcurrentHashMap<String,ComboPooledDataSource>( 8, 0.9f, 1 ) ;
 
@@ -105,6 +107,8 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
           else {
             metrics = new MetricRegistry( String.format( "%s.metrics", address ) ) ;
             requests = metrics.meter( name( JdbcProcessor.class, "requests" ) ) ;
+            jmxReporter = JmxReporter.forRegistry( metrics ).build() ;
+            jmxReporter.start() ;
             return true ;
           }
         }
@@ -122,7 +126,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
           if( pool != null ) {
             pool.close() ;
             DriverManager.deregisterDriver( DriverManager.getDriver( url ) ) ;
-            System.out.printf( "REQUESTS: %d \n", requests.getCount() ) ;
+            jmxReporter.shutdown() ;
           }
         }
       }
