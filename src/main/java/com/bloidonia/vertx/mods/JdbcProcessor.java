@@ -126,7 +126,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
           if( pool != null ) {
             pool.close() ;
             DriverManager.deregisterDriver( DriverManager.getDriver( url ) ) ;
-            jmxReporter.shutdown() ;
+            jmxReporter.stop() ;
           }
         }
       }
