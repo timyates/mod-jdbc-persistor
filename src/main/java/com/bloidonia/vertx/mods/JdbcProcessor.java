@@ -18,6 +18,10 @@ package com.bloidonia.vertx.mods ;
 
 import com.mchange.v2.c3p0.* ;
 
+import com.yammer.metrics.Meter ;
+import com.yammer.metrics.MetricRegistry ;
+import static com.yammer.metrics.MetricRegistry.name ;
+
 import java.sql.Connection ;
 import java.sql.Driver ;
 import java.sql.DriverManager ;
@@ -60,6 +64,9 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
   private int    batchTimeout ;
   private int    transTimeout ;
 
+  private static MetricRegistry metrics ;
+  private static Meter requests ;
+
   private volatile static ConcurrentHashMap<String,ComboPooledDataSource> poolMap = new ConcurrentHashMap<String,ComboPooledDataSource>( 8, 0.9f, 1 ) ;
 
   private static boolean setupPool( String  address,
@@ -96,6 +103,8 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
             pool.close() ;
           }
           else {
+            metrics = new MetricRegistry( String.format( "%s.metrics", address ) ) ;
+            requests = metrics.meter( name( JdbcProcessor.class, "requests" ) ) ;
             return true ;
           }
         }
@@ -113,6 +122,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
           if( pool != null ) {
             pool.close() ;
             DriverManager.deregisterDriver( DriverManager.getDriver( url ) ) ;
+            System.out.printf( "REQUESTS: %d \n", requests.getCount() ) ;
           }
         }
       }
@@ -189,6 +199,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
 
   public void handle( final Message<JsonObject> message ) {
     String action = message.body.getString( "action" ) ;
+    requests.mark() ;
     logger.debug( "** HANDLE ** " + this.toString() + " (main handler) RECEIVED CALL " + action ) ;
     if( action == null ) {
       sendError( message, "action must be specified" ) ;
