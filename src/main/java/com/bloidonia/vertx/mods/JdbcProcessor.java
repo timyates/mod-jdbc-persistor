@@ -18,6 +18,11 @@ package com.bloidonia.vertx.mods ;
 
 import com.mchange.v2.c3p0.* ;
 
+import com.yammer.metrics.JmxReporter ;
+import com.yammer.metrics.Meter ;
+import com.yammer.metrics.MetricRegistry ;
+import static com.yammer.metrics.MetricRegistry.name ;
+
 import java.sql.Connection ;
 import java.sql.Driver ;
 import java.sql.DriverManager ;
@@ -60,6 +65,10 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
   private int    batchTimeout ;
   private int    transTimeout ;
 
+  private static MetricRegistry metrics ;
+  private static Meter requests ;
+  private static JmxReporter jmxReporter ;
+
   private volatile static ConcurrentHashMap<String,ComboPooledDataSource> poolMap = new ConcurrentHashMap<String,ComboPooledDataSource>( 8, 0.9f, 1 ) ;
 
   private static boolean setupPool( String  address,
@@ -96,6 +105,10 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
             pool.close() ;
           }
           else {
+            metrics = new MetricRegistry( String.format( "%s.metrics", address ) ) ;
+            requests = metrics.meter( name( JdbcProcessor.class, "requests" ) ) ;
+            jmxReporter = JmxReporter.forRegistry( metrics ).build() ;
+            jmxReporter.start() ;
             return true ;
           }
         }
@@ -113,6 +126,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
           if( pool != null ) {
             pool.close() ;
             DriverManager.deregisterDriver( DriverManager.getDriver( url ) ) ;
+            jmxReporter.stop() ;
           }
         }
       }
@@ -188,7 +202,8 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
   }
 
   public void handle( final Message<JsonObject> message ) {
-    String action = message.body.getString( "action" ) ;
+    String action = message.body().getString( "action" ) ;
+    requests.mark() ;
     logger.debug( "** HANDLE ** " + this.toString() + " (main handler) RECEIVED CALL " + action ) ;
     if( action == null ) {
       sendError( message, "action must be specified" ) ;
@@ -300,7 +315,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     Statement statement = null ;
     try {
       statement = connection.createStatement() ;
-      statement.execute( message.body.getString( "stmt" ) ) ;
+      statement.execute( message.body().getString( "stmt" ) ) ;
       if( transaction == null ) {
         sendOK( message ) ;
       }
@@ -339,10 +354,10 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     new BatchHandler( connection, message, transaction ) {
       void initialiseStatement( Message<JsonObject> initial ) throws SQLException {
         if( insert ) {
-          this.statement = connection.prepareStatement( initial.body.getString( "stmt" ), Statement.RETURN_GENERATED_KEYS ) ;
+          this.statement = connection.prepareStatement( initial.body().getString( "stmt" ), Statement.RETURN_GENERATED_KEYS ) ;
         }
         else {
-          this.statement = connection.prepareStatement( initial.body.getString( "stmt" ) ) ;
+          this.statement = connection.prepareStatement( initial.body().getString( "stmt" ) ) ;
         }
       }
       public JsonObject process() throws SQLException {
@@ -404,7 +419,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     JsonObject reply = new JsonObject() ;
     reply.putString( "status", "ok" ) ;
 
-    int timeout = message.body.getNumber( "timeout", transTimeout ).intValue() ;
+    int timeout = message.body().getNumber( "timeout", transTimeout ).intValue() ;
     final long timerId = vertx.setTimer( timeout, new TransactionTimeoutHandler( connection ) ) ;
 
     message.reply( reply, new TransactionalHandler( connection, timerId, timeout ) ) ;
@@ -441,7 +456,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
 
     public void handle( Message<JsonObject> message ) {
       vertx.cancelTimer( timerId ) ;
-      String action = message.body.getString( "action" ) ;
+      String action = message.body().getString( "action" ) ;
       logger.debug( "** HANDLE ** " + this.toString() + " (TRANSACTION handler) RECEIVED CALL " + action ) ;
       if( action == null ) {
         sendError( message, "action must be specified" ) ;
@@ -543,12 +558,12 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
       this.connection = connection ;
       this.transaction = transaction ;
       this.timerId = -1 ;
-      this.batchSize = initial.body.getNumber( "batchsize", -1 ).intValue() ;
+      this.batchSize = initial.body().getNumber( "batchsize", -1 ).intValue() ;
       if( this.batchSize <= 0 ) this.batchSize = -1 ;
-      this.timeout = initial.body.getNumber( "batchtimeout", batchTimeout ).intValue() ;
+      this.timeout = initial.body().getNumber( "batchtimeout", batchTimeout ).intValue() ;
 
       // create a List<List<Object>> from the values
-      this.values = JsonUtils.arrayNormaliser( initial.body.getArray( "values" ) ) ;
+      this.values = JsonUtils.arrayNormaliser( initial.body().getArray( "values" ) ) ;
       if( this.values != null ) {
         this.valueIterator = values.iterator() ;
       }
@@ -559,7 +574,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     }
 
     void initialiseStatement( Message<JsonObject> initial ) throws SQLException {
-      this.statement = connection.prepareStatement( initial.body.getString( "stmt" ) ) ;
+      this.statement = connection.prepareStatement( initial.body().getString( "stmt" ) ) ;
     }
 
     abstract JsonObject process() throws SQLException ;
