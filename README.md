@@ -2,9 +2,11 @@ Slowly gaining trust...  Could do with more eyes looking at it to check its asyn
 
 > For Vert-x 1.3.1, please use v1.2 of this mod
 
-### The current master branch here is WIP for Vert.x 2.0.0
+### The current master branch here is WIP for Vert.x 2.0.0-SNAPSHOT
 
-See the [current tests](https://github.com/timyates/mod-jdbc-persistor/blob/master/src/test/resources/test_client.js) for it in action though...
+As it's a snapshot, you might need to `rm -rf  ~/.m2/repository/io/vertx/` to get maven to refresh to latest jars and get them all aligned...
+
+See the [current tests](https://github.com/timyates/mod-jdbc-persistor/blob/master/src/test/resources/integration_tests/javascript/test_client.js) for it in action though...
 
 Default config:
 
