@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-load("vertx.js");
-load("vertx_tests.js");
+var container  = require( "container" ) ;
+var vertx      = require( "vertx" ) ;
+var vertxTests = require( "vertx_tests" ) ;
+var vassert    = require( "vertx_assert" ) ;
 
 var eb = vertx.eventBus;
 
@@ -26,15 +28,19 @@ var readyAddress = persistorConfig.address + '.ready'
 
 var readyHandler = function( msg ) {
   if( msg.status === 'ok' ) {
-    initTests( script ) ;
     eb.unregisterHandler( readyAddress, readyHandler ) ;
+    vertxTests.startTests( script ) ;
   }
 } ;
 
 // This will get called by the jdbc-persistor when it has installed the work-queue
 eb.registerHandler( readyAddress, readyHandler ) ;
 
-vertx.deployModule(java.lang.System.getProperty( 'vertx.modulename' ), persistorConfig, 1, function() {} ) ;
+container.deployModule( java.lang.System.getProperty( 'vertx.modulename' ), persistorConfig, 1, function(err, deployID) {
+  if (err != null) {
+    err.printStackTrace();
+  }
+} ) ;
 
 function checkStatus() {
   eb.send( 'test.persistor', {
