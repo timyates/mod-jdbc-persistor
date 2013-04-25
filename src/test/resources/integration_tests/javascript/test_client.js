@@ -33,7 +33,7 @@ var readyHandler = function( msg ) {
   }
 } ;
 
-// This will get called by the jdbc-persistor when it has installed the work-queue
+// This will get called by the jdbc-persistor when it's running
 eb.registerHandler( readyAddress, readyHandler ) ;
 
 container.deployModule( java.lang.System.getProperty( 'vertx.modulename' ), persistorConfig, 1, function(err, deployID) {
