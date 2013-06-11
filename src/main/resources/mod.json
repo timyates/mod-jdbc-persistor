@@ -1,5 +1,11 @@
 {
   "main": "com.bloidonia.vertx.mods.JdbcProcessor",
   "multi-threaded": true,
-  "worker": true
+  "worker": true,
+
+  "description":"JDBC persistor module for Vert.x",
+  "licenses": ["The Apache Software License Version 2.0"],
+  "author": "Tim Yates",
+  "keywords": ["jdbc", "database", "databases", "persistence", "json", "sql"],
+  "homepage": "https://github.com/timyates/mod-jdbc-persistor"
 }
