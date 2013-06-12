@@ -52,6 +52,8 @@ dependencies {
   testCompile( "io.vertx:testtools:$toolsVersion" ) {
     transitive = false
   }
+  provided "org.codehaus.groovy:groovy-all:$groovyVersion"
+  testCompile "io.vertx:mod-rxjava:$rxVersion"
 }
 
 test {
