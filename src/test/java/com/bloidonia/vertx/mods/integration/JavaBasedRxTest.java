@@ -2,17 +2,20 @@ package com.bloidonia.vertx.mods.integration ;
 
 import io.vertx.rxcore.java.eventbus.RxEventBus ;
 import io.vertx.rxcore.java.eventbus.RxMessage ;
+
+import java.util.ArrayList ;
+
 import org.junit.Test ;
+
 import org.vertx.java.core.AsyncResult ;
 import org.vertx.java.core.AsyncResultHandler ;
 import org.vertx.java.core.json.JsonObject ;
 import org.vertx.java.core.json.JsonArray ;
-import java.util.ArrayList ;
 import org.vertx.testtools.TestVerticle ;
+
 import rx.Observable ;
 import rx.util.functions.Action1 ;
 import rx.util.functions.Func1 ;
-import rx.util.functions.Func2 ;
 
 import static org.vertx.testtools.VertxAssert.* ;
 
