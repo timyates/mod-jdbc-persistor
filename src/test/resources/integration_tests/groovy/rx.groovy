@@ -55,17 +55,14 @@ def testRxMapMany() {
             }
             .mapMany { message ->
               assertEquals( message.body().getString( "status" ), "ok" )
-              assertEquals( message.body().getArray( "result" )*.ID == [ 1, 2, 3 ] )
+              assertEquals( message.body().getArray( "result" )*.ID, [ 1, 2, 3 ] )
               rxEventBus.send( "test.persistor", [
                 action:  'select',
                 stmt:    'SELECT * FROM test ORDER BY age ASC' ] )
             }
             .mapMany { message ->
               assertEquals( message.body().getString( "status" ), "ok" )
-              def result = message.body().getArray( "result" )
-              assertEquals( result.get( 0 ).getNumber( "AGE" ), 29 )
-              assertEquals( result.get( 1 ).getNumber( "AGE" ), 42 )
-              assertEquals( result.get( 2 ).getNumber( "AGE" ), 65 )
+              assertEquals( message.body().getArray( "result" )*.AGE, [ 29, 42, 65 ] )
               rxEventBus.send( "test.persistor", [
                 action:  'execute',
                 stmt:    'DROP TABLE test' ] )
