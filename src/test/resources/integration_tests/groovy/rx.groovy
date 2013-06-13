@@ -69,7 +69,6 @@ def testRxMapMany() {
             }
             .subscribe { message ->
               assertEquals( message.body().getString( "status" ), "ok" )
-              System.out.println "ALL OK!! :-)"
               testComplete()
             }
 */
