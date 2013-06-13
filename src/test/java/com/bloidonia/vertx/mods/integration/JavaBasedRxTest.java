@@ -4,6 +4,7 @@ import io.vertx.rxcore.java.eventbus.RxEventBus ;
 import io.vertx.rxcore.java.eventbus.RxMessage ;
 
 import java.util.ArrayList ;
+import java.util.List ;
 
 import org.junit.Test ;
 
@@ -46,10 +47,10 @@ public class JavaBasedRxTest extends TestVerticle {
         insertMsg = new JsonObject() {{
           putString( "action", "insert" ) ;
           putString( "stmt",   "INSERT INTO test ( name, age ) VALUES ( ?, ? )" ) ;
-          putArray(  "values", new JsonArray( new ArrayList() {{
-                                 add( new ArrayList() {{ add( "tim" )  ; add( 65 ) ; }} ) ;
-                                 add( new ArrayList() {{ add( "dave" ) ; add( 29 ) ; }} ) ;
-                                 add( new ArrayList() {{ add( "mike" ) ; add( 42 ) ; }} ) ;
+          putArray(  "values", new JsonArray( new ArrayList<Object>() {{
+                                 add( new ArrayList<Object>() {{ add( "tim" )  ; add( 65 ) ; }} ) ;
+                                 add( new ArrayList<Object>() {{ add( "dave" ) ; add( 29 ) ; }} ) ;
+                                 add( new ArrayList<Object>() {{ add( "mike" ) ; add( 42 ) ; }} ) ;
                                }} ) ) ;
         }} ;
         selectMsg = new JsonObject() {{
