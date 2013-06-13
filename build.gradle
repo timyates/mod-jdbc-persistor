@@ -52,6 +52,8 @@ dependencies {
   testCompile( "io.vertx:testtools:$toolsVersion" ) {
     transitive = false
   }
+  provided "org.codehaus.groovy:groovy-all:$groovyVersion"
+  testCompile "io.vertx:mod-rxjava:$rxVersion"
 }
 
 test {
@@ -68,6 +70,7 @@ Please edit the details below.
  */
 def configurePom( def pom ) {
   pom.project {
+    name 'mod-jdbc-persistor'
     description 'JDBC Persistor Module for Vert.x'
     inceptionYear '2012'
     packaging 'zip'

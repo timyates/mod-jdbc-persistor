@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-var container  = require( "container" ) ;
+var container  = require( "vertx/container" ) ;
+var eb         = require( "vertx/event_bus" ) ;
 var vertx      = require( "vertx" ) ;
 var vertxTests = require( "vertx_tests" ) ;
 var vassert    = require( "vertx_assert" ) ;
-
-var eb = vertx.eventBus;
 
 var script = this ;
 var persistorConfig = { address: 'test.persistor', url: 'jdbc:hsqldb:mem:testdb?shutdown=true' }
