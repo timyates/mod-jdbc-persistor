@@ -17,9 +17,7 @@ package integration_tests.groovy
 
 import io.vertx.rxcore.groovy.eventbus.RxEventBus
 
-import org.vertx.groovy.testframework.TestUtils
 import org.vertx.groovy.testtools.VertxTests
-
 import static org.vertx.testtools.VertxAssert.*
 
 def config = [ address: 'test.persistor',
@@ -30,8 +28,13 @@ VertxTests.initialize( this )
 rxEventBus = new RxEventBus( vertx.eventBus )
 
 container.deployModule( System.getProperty("vertx.modulename"), config, 1 ) { asyncResult ->
-  System.out.println( asyncResult )
-  VertxTests.startTests( this )
+  if( asyncResult.succeeded() ) {
+    println System.getProperty("vertx.modulename") + " deployment succeeded"
+    VertxTests.startTests( this )
+  }
+  else {
+    throw asyncResult.cause()
+  }
 }
 
 def testRxMapMany() {
