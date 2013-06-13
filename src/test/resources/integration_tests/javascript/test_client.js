@@ -22,7 +22,6 @@ var vassert    = require( "vertx_assert" ) ;
 
 var script = this ;
 var persistorConfig = { address: 'test.persistor', url: 'jdbc:hsqldb:mem:testdb?shutdown=true' }
-java.lang.System.out.println( persistorConfig.url ) ;
 var readyAddress = persistorConfig.address + '.ready'
 
 var readyHandler = function( msg ) {
