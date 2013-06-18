@@ -56,6 +56,7 @@ dependencies {
     transitive = false
   }
   provided "org.codehaus.groovy:groovy-all:$groovyVersion"
+  provided "io.vertx:lang-groovy:$groovyLangModVersion@jar"
   testCompile "io.vertx:mod-rxjava:$rxVersion"
 }
 
