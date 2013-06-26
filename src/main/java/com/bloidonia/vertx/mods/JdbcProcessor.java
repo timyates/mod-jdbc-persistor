@@ -204,7 +204,9 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
   public void handle( final Message<JsonObject> message ) {
     String action = message.body().getString( "action" ) ;
     requests.mark() ;
-    logger.debug( "** HANDLE ** " + this.toString() + " (main handler) RECEIVED CALL " + action ) ;
+    if ( logger.isDebugEnabled() ) {
+      logger.debug( "** HANDLE ** " + this.toString() + " (main handler) RECEIVED CALL " + action ) ;
+    }
     if( action == null ) {
       sendError( message, "action must be specified" ) ;
     }
@@ -457,7 +459,9 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     public void handle( Message<JsonObject> message ) {
       vertx.cancelTimer( timerId ) ;
       String action = message.body().getString( "action" ) ;
-      logger.debug( "** HANDLE ** " + this.toString() + " (TRANSACTION handler) RECEIVED CALL " + action ) ;
+      if ( logger.isDebugEnabled() ) {
+        logger.debug( "** HANDLE ** " + this.toString() + " (TRANSACTION handler) RECEIVED CALL " + action ) ;
+      }
       if( action == null ) {
         sendError( message, "action must be specified" ) ;
       }
@@ -589,7 +593,9 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     }
 
     public void handle( final Message<JsonObject> message ) {
-      logger.debug( "** HANDLE ** " + this.toString() + " (BATCH handler) RECEIVED CALL" ) ;
+      if ( logger.isDebugEnabled() ) {
+        logger.debug( "** HANDLE ** " + this.toString() + " (BATCH handler) RECEIVED CALL" ) ;
+      }
       if( timerId != -1 ) {
         vertx.cancelTimer( timerId ) ;
       }
