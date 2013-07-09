@@ -116,7 +116,7 @@ or
     {
       action: "select",
       stmt: "SELECT * FROM xxx WHERE a=? AND b=?",
-      params: [ [ 10, 20 ], ... ]
+      values: [ [ 10, 20 ], ... ]
     }
 
 ### Outputs
