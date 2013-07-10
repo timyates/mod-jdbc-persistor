@@ -262,7 +262,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
       connection = poolMap.get( address ).getConnection() ;
       doSelect( message, connection, null ) ;
     }
-    catch( SQLException ex ) {
+    catch( Exception ex ) {
       sendError( message, "Caught error with SELECT", ex ) ;
     }
   }
@@ -303,7 +303,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
       connection = poolMap.get( address ).getConnection() ;
       doExecute( message, connection, null ) ;
     }
-    catch( SQLException ex ) {
+    catch( Exception ex ) {
       sendError( message, "Caught error with EXECUTE", ex ) ;
     }
     finally {
@@ -344,7 +344,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
       connection = poolMap.get( address ).getConnection() ;
       doUpdate( message, connection, insert, null ) ;
     }
-    catch( SQLException ex ) {
+    catch( Exception ex ) {
       sendError( message, "Caught error with UPDATE.", ex ) ;
     }
   }
@@ -407,7 +407,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
       connection.setAutoCommit( false ) ;
       doTransaction( message, connection ) ;
     }
-    catch( SQLException ex ) {
+    catch( Exception ex ) {
       sendError( message, "Caught exception in TRANSACTION.  Rolling back...", ex ) ;
       try { connection.rollback() ; }
       catch( SQLException exx ) {
@@ -492,7 +492,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
         }
         timerId = vertx.setTimer( timeout, new TransactionTimeoutHandler( connection ) ) ;
       }
-      catch( SQLException ex ) {
+      catch( Exception ex ) {
         sendError( message, "Error performing " + action + ".  Rolling back.", ex ) ;
         doRollback( null ) ;
       }
