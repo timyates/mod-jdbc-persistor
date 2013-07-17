@@ -77,7 +77,7 @@ def configurePom( def pom ) {
     name 'mod-jdbc-persistor'
     description 'JDBC Persistor Module for Vert.x'
     inceptionYear '2012'
-    packaging 'zip'
+    packaging 'jar'
     url 'https://github.com/timyates/mod-jdbc-persistor'
 
     developers {

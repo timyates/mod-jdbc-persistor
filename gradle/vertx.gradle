@@ -44,15 +44,13 @@ targetCompatibility = '1.7'
 
 project.ext.moduleName = "$modowner~$modname~$version"
 
-if (produceJar == 'false') {
-  jar.enabled = false
-  assert configurations.archives.artifacts.removeAll { it.file == jar.archivePath }
-}
-
 configurations {
   provided
   testCompile.extendsFrom provided
 }
+
+jar.enabled = false
+assert configurations.archives.artifacts.removeAll { it.file == jar.archivePath }
 
 repositories {
   if (System.getenv("VERTX_DISABLE_MAVENLOCAL") == null) {
@@ -131,7 +129,6 @@ test {
 
   testLogging { exceptionFormat "full" }
 
-  systemProperty 'vertx.loadWithPlatformCL', "false"
   systemProperty 'vertx.mods', "build/mods"
 }
 
@@ -207,7 +204,6 @@ task pullInDeps(dependsOn: copyMod, description: 'Pull in all the module depende
 
 def setSysProps() {
   System.setProperty("vertx.mods", "build/mods")
-  System.setProperty("vertx.loadWithPlatformCL", "false");
 }
 
 def loadProperties(String sourceFileName) {
