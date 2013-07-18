@@ -25,7 +25,9 @@ def config = [ address: 'test.persistor',
 
 VertxTests.initialize( this )
 
+/*
 rxEventBus = new RxEventBus( vertx.eventBus )
+*/
 
 container.deployModule( System.getProperty("vertx.modulename"), config, 1 ) { asyncResult ->
   if( asyncResult.succeeded() ) {
