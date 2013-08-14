@@ -43,14 +43,9 @@ install - install any jars produced to the local Maven repository (.m2)
 
  */
 
-configurations {
-  all*.exclude group: 'org.slf4j', module: 'slf4j-api'
-}
-
 dependencies {
   compile "com.mchange:c3p0:$c3p0Version"
   compile "commons-dbutils:commons-dbutils:$dbutilsVersion"
-  compile "com.yammer.metrics:metrics-core:$metricsVersion"
   testCompile "org.hsqldb:hsqldb:$hsqldbVersion"
   testCompile "junit:junit:$junitVersion"
   testCompile( "io.vertx:testtools:$toolsVersion" ) {
