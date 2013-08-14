@@ -46,7 +46,6 @@ install - install any jars produced to the local Maven repository (.m2)
 dependencies {
   compile "com.mchange:c3p0:$c3p0Version"
   compile "commons-dbutils:commons-dbutils:$dbutilsVersion"
-  compile "com.yammer.metrics:metrics-core:$metricsVersion"
   testCompile "org.hsqldb:hsqldb:$hsqldbVersion"
   testCompile "junit:junit:$junitVersion"
   testCompile( "io.vertx:testtools:$toolsVersion" ) {
