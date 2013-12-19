@@ -1,12 +1,16 @@
 Slowly gaining trust...  Could do with more eyes looking at it to check its asynchronous credentials, and spot weak points or cracks...
 
+Current module id:
+
+    com.bloidonia~mod-jdbc-persistor~2.1
+
+Built for Vert.x 2.0.2-final
+
 > For Vert-x 1.3.1, please use v1.2 of this mod
 
-### The current master branch here is WIP for Vert.x 2.0.0-CR1
+See the [current tests](https://github.com/timyates/mod-jdbc-persistor/blob/master/src/test/resources/integration_tests/javascript/test_client.js) for it in action...
 
-As it's a snapshot, you might need to `rm -rf  ~/.m2/repository/io/vertx/` to get maven to refresh to latest jars and get them all aligned...
-
-See the [current tests](https://github.com/timyates/mod-jdbc-persistor/blob/master/src/test/resources/integration_tests/javascript/test_client.js) for it in action though...
+I have also written a [modified version of the webapp example](https://github.com/timyates/vertx-example-jdbc-webapp) using this module.
 
 Default config:
 
