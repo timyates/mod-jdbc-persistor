@@ -74,7 +74,9 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
                                     int     idleConnectionTestPeriod,
                                     String  preferredTestQuery,
                                     boolean testConnectionOnCheckin,
-                                    boolean testConnectionOnCheckout ) throws Exception {
+                                    boolean testConnectionOnCheckout,
+                                    int     acquireRetryAttempts,
+                                    int     acquireRetryDelay ) throws Exception {
     if( poolMap.get( address ) == null ) {
       synchronized( poolMap ) {
         if( poolMap.get( address ) == null ) {
@@ -92,6 +94,8 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
           pool.setPreferredTestQuery( preferredTestQuery ) ;
           pool.setTestConnectionOnCheckin( testConnectionOnCheckin ) ;
           pool.setTestConnectionOnCheckout( testConnectionOnCheckout ) ;
+          pool.setAcquireRetryAttempts( acquireRetryAttempts ) ;
+          pool.setAcquireRetryDelay( acquireRetryDelay ) ;
           if( poolMap.putIfAbsent( address, pool ) != null ) {
             pool.close() ;
           }
@@ -132,6 +136,8 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     String preferredTestQuery        = getOptionalStringConfig( "c3p0.preferredTestQuery", null ) ;
     boolean testConnectionOnCheckin  = getOptionalBooleanConfig( "c3p0.testConnectionOnCheckin", false ) ;
     boolean testConnectionOnCheckout = getOptionalBooleanConfig( "c3p0.testConnectionOnCheckout", false ) ;
+    int acquireRetryAttempts         = getOptionalIntConfig( "c3p0.acquireRetryAttempts", 30 ) ;
+    int acquireRetryDelay            = getOptionalIntConfig( "c3p0.acquireRetryDelay", 1000 ) ;
 
     minpool      = getOptionalIntConfig( "minpool",    5  ) ;
     maxpool      = getOptionalIntConfig( "maxpool",    20 ) ;
@@ -155,7 +161,8 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
     try {
       if( setupPool( address, driver, url, username, password, minpool, maxpool, acquire,
                      automaticTestTable, idleConnectionTestPeriod, preferredTestQuery,
-                     testConnectionOnCheckin, testConnectionOnCheckout ) ) {
+                     testConnectionOnCheckin, testConnectionOnCheckout, acquireRetryAttempts,
+                     acquireRetryDelay ) ) {
         logger.debug( "Pool created" ) ;
       }
       else {

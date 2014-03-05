@@ -68,6 +68,8 @@ You can also add the following properties to the config object to test the conne
     c3p0.preferredTestQuery
     c3p0.testConnectionOnCheckin
     c3p0.testConnectionOnCheckout
+    c3p0.acquireRetryAttempts
+    c3p0.acquireRetryDelay
 
 Currently attempts to support:
 
