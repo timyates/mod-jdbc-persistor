@@ -2,7 +2,7 @@ Slowly gaining trust...  Could do with more eyes looking at it to check its asyn
 
 Current module id:
 
-    com.bloidonia~mod-jdbc-persistor~2.1
+    com.bloidonia~mod-jdbc-persistor~2.1.2
 
 Built for Vert.x 2.0.2-final
 
@@ -57,7 +57,7 @@ This means you can do:
 
     // This will get called by the jdbc-persistor when it has installed the work-queue
     eb.registerHandler( readyAddress, readyHandler ) ;
-    vertx.deployModule('com.bloidonia.jdbc-persistor-v1.2', persistorConfig, 1, function() {} ) ;
+    vertx.deployModule('com.bloidonia~mod-jdbc-persistor~2.1.2', persistorConfig, 1, function() {} ) ;
 
 And when the `readyHandler` is called, you know your work-queue is up and running.
 
