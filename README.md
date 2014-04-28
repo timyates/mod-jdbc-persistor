@@ -1,12 +1,10 @@
-Slowly gaining trust...  Could do with more eyes looking at it to check its asynchronous credentials, and spot weak points or cracks...
-
 Current module id:
 
     com.bloidonia~mod-jdbc-persistor~2.1.2
 
 Built for Vert.x 2.0.2-final
 
-> For Vert-x 1.3.1, please use v1.2 of this mod
+> For Vert-x 1.3.1, please use the unsupported v1.2 of this mod
 
 See the [current tests](https://github.com/timyates/mod-jdbc-persistor/blob/master/src/test/resources/integration_tests/javascript/test_client.js) for it in action...
 
@@ -75,9 +73,7 @@ Currently attempts to support:
 
 # Interface Specification
 
-This is a quick doc describing how I want it work, so I don't change my mind halfway through coding it ;-)
-
-It may not be a description of how it currently works...
+The following message types are supported.
 
 ## EXECUTE
 
