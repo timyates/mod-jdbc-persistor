@@ -130,6 +130,17 @@ function testSimpleSelect() {
   } )
 }
 
+function testSelectException() {
+  eb.send( 'test.persistor', {
+    action: 'select',
+    stmt:   'SELECT missing_field FROM INFORMATION_SCHEMA.SYSTEM_USERS'
+  }, function( reply ) {
+    vassert.assertEquals( reply.status, 'error' ) ;
+    vassert.assertTrue( reply.message.indexOf( 'MISSING_FIELD' ) > 0 ) ;
+    checkStatus() ;
+  } )
+}
+
 function testBatchedSimpleSelector() {
   var num = 23;
 

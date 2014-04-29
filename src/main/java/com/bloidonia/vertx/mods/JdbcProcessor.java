@@ -252,7 +252,8 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
       doSelect( message, connection, null ) ;
     }
     catch( Exception ex ) {
-      sendError( message, "Caught error with SELECT", ex ) ;
+      SilentCloser.close( connection ) ;
+      sendError( message, String.format( "Caught error with SELECT: %s", ex.getMessage() ), ex ) ;
     }
   }
 
@@ -293,7 +294,7 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
       doExecute( message, connection, null ) ;
     }
     catch( Exception ex ) {
-      sendError( message, "Caught error with EXECUTE", ex ) ;
+      sendError( message, String.format( "Caught error with EXECUTE: %s", ex.getMessage() ), ex ) ;
     }
     finally {
       SilentCloser.close( connection ) ;
@@ -334,7 +335,8 @@ public class JdbcProcessor extends BusModBase implements Handler<Message<JsonObj
       doUpdate( message, connection, insert, null ) ;
     }
     catch( Exception ex ) {
-      sendError( message, "Caught error with UPDATE.", ex ) ;
+      SilentCloser.close( connection ) ;
+      sendError( message, String.format( "Caught error with UPDATE: %s", ex.getMessage() ), ex ) ;
     }
   }
 
