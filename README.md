@@ -1,8 +1,8 @@
 Current module id:
 
-    com.bloidonia~mod-jdbc-persistor~2.1.3
+    com.bloidonia~mod-jdbc-persistor~2.1.4
 
-Built for Vert.x 2.0.2-final
+Built for Vert.x 2.1.5
 
 > For Vert-x 1.3.1, please use the unsupported v1.2 of this mod
 
