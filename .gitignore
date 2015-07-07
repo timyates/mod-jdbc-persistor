@@ -4,8 +4,11 @@
 .idea
 .project
 .settings
-mods
 module.iml
 bin
 build
 out
+
+mod-jdbc-persistor.ipr
+mod-jdbc-persistor.iws
+mod-jdbc-persistor.iml
